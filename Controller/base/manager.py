@@ -35,7 +35,8 @@ class Manager(object):
         except Exception as e:
             print(f"部署任务 {task_id} 失败: {str(e)}")
             return False
-
+        
+    # TODO：这个函数需要修改
     def task_start(self, taskId: int, allocation: Dict):
         """
         启动相应的容器
