@@ -24,7 +24,61 @@ class Manager(object):
         self.check_timer.daemon = True
         self.check_timer.start()
 
-    
+    def deploy_task(self, task_id: int, allocation: Dict) -> bool:
+        """
+        部署任务并返回是否成功
+        """
+        try:
+            # 启动容器
+            self.task_start(task_id, allocation)
+            return True
+        except Exception as e:
+            print(f"部署任务 {task_id} 失败: {str(e)}")
+            return False
+
+    def task_start(self, taskId: int, allocation: Dict):
+        """
+        启动相应的容器
+        """
+        # 挂载
+        nfsApp = self.controller.nfs['dml_app']
+        nfsDataset = self.controller.nfs['dataset']
+        
+        # 添加节点
+        for node_name, node_info in allocation.items():
+            emu = self.controller.emulator[node_info['emulator']]
+            self.add_node_name(taskId, node_name)
+            en = self.controller.add_emulated_node (node_name, '/home/qianguo/worker/dml_app/'+str(taskId),
+                ['python3', 'gl_peer.py'], 'dml:v1.0', cpu=node_info['cpu'], ram=node_info['ram'], unit='G', emulator=emu)
+            en.mount_local_path ('./dml_file', '/home/qianguo/worker/dml_file')
+            en.mount_nfs (nfsApp, '/home/qianguo/worker/dml_app')
+            en.mount_nfs (nfsDataset, '/home/qianguo/worker/dataset')
+                
+            # 解析links
+        links_json = read_json (os.path.join (dirName, "task_links", str(taskId),'links.json'))
+        self.controller.load_link_user (taskId, links_json)
+
+            # 保存信息
+        self.controller.save_yml_user(taskId) # 保存yml文件到controller
+        self.controller.save_node_info() # 保存节点信息到testbed
+        self.controller.manager.load_node_info() # 保存节点信息到manager
+        self.controller.send_tc() # 将tc信息发送给worker，没有的添加，有的更新
+        self.launch_all_emulated_user(taskId, dirName)
+
+    def check_and_start_tasks(self):
+        """检查已调度队列并启动任务"""
+        scheduled = self.controller.get_scheduled_task()
+        if scheduled:
+            task_id, allocation = scheduled
+            self.task_start(task_id, allocation)
+
+    def _check_scheduled_tasks(self):
+        """定期检查已调度的任务"""
+        while True:
+            self.check_and_start_tasks()
+            time.sleep(1)
+
+
     def __load_default_route(self):
         @self.testbed.flask.route('/taskRequestFile', methods=['POST'])
         def route_receive_request():
@@ -132,55 +186,25 @@ class Manager(object):
             self.controller.add_pending_task(task_id)
             return 'Task submitted for scheduling'
         
-        
+        # def task_schedule(taskId: int):
+        #     """
+        #     丢给Scheduler处理，得到gl_run.py里的配置
+        #     """
+        #     allocation = self.controller.scheduler.resource_schedule(taskId)
+        #     for node, node_info in allocation.items(): 
+        #         print(f"node name: {node}, node object: {node_info}")
+        #     return allocation
 
-        def task_schedule(taskId: int):
+        @self.testbed.flask.route('/getTaskStatus', methods=['GET'])
+        def route_get_task_status():
             """
-            丢给Scheduler处理，得到gl_run.py里的配置
+            获取任务状态
             """
-            allocation = self.controller.scheduler.resource_schedule(taskId)
-            for node, node_info in allocation.items(): 
-                print(f"node name: {node}, node object: {node_info}")
-            return allocation
-            
-    def task_start(self, taskId: int, allocation: Dict):
-        """
-        启动相应的容器
-        """
-            # 挂载
-        nfsApp = self.testbed.nfs['dml_app']
-        nfsDataset = self.testbed.nfs['dataset']
-                
-        # 添加节点
-        for node_name, node_info in allocation.items():
-            emu = self.testbed.emulator[node_info['emulator']]
-            self.add_node_name(taskId, node_name)
-            en = self.testbed.add_emulated_node (node_name, '/home/qianguo/worker/dml_app/'+str(taskId),
-                ['python3', 'gl_peer.py'], 'dml:v1.0', cpu=node_info['cpu'], ram=node_info['ram'], unit='G', emulator=emu)
-            en.mount_local_path ('./dml_file', '/home/qianguo/worker/dml_file')
-            en.mount_nfs (nfsApp, '/home/qianguo/worker/dml_app')
-            en.mount_nfs (nfsDataset, '/home/qianguo/worker/dataset')
-                
-            # 解析links
-        links_json = read_json (os.path.join (dirName, "task_links", str(taskId),'links.json'))
-        self.testbed.load_link_user (taskId, links_json)
-
-            # 保存信息
-        self.testbed.save_yml_user(taskId) # 保存yml文件到controller
-        self.testbed.save_node_info() # 保存节点信息到testbed
-        self.testbed.manager.load_node_info() # 保存节点信息到manager
-        self.testbed.send_tc() # 将tc信息发送给worker，没有的添加，有的更新
-        self.launch_all_emulated_user(taskId, dirName)
-
-    def check_and_start_tasks(self):
-        """检查已调度队列并启动任务"""
-        scheduled = self.controller.get_scheduled_task()
-        if scheduled:
-            task_id, allocation = scheduled
-            self.task_start(task_id, allocation)
-
-    def _check_scheduled_tasks(self):
-        """定期检查已调度的任务"""
-        while True:
-            self.check_and_start_tasks()
-            time.sleep(1)
+            task_id = int(request.args.get('taskId'))
+            if task_id in self.controller.get_deployed_tasks():
+                return 'Task deployed'
+            elif any(t[0] == task_id for t in self.controller.scheduled_tasks.queue):
+                return 'Task scheduled'
+            elif task_id in self.controller.pending_tasks.queue:
+                return 'Task pending'
+            return 'Task not found'
