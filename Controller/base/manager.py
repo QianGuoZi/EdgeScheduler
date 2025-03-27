@@ -30,48 +30,18 @@ class Manager(object):
         """
         try:
             # 启动容器
-            self.task_start(task_id, allocation)
+            self.controller.task_start(task_id, allocation)
             return True
         except Exception as e:
             print(f"部署任务 {task_id} 失败: {str(e)}")
             return False
-        
-    # TODO：这个函数需要修改
-    def task_start(self, taskId: int, allocation: Dict):
-        """
-        启动相应的容器
-        """
-        # 挂载
-        nfsApp = self.controller.nfs['dml_app']
-        nfsDataset = self.controller.nfs['dataset']
-        
-        # 添加节点
-        for node_name, node_info in allocation.items():
-            emu = self.controller.emulator[node_info['emulator']]
-            self.add_node_name(taskId, node_name)
-            en = self.controller.add_emulated_node (node_name, '/home/qianguo/worker/dml_app/'+str(taskId),
-                ['python3', 'gl_peer.py'], 'dml:v1.0', cpu=node_info['cpu'], ram=node_info['ram'], unit='G', emulator=emu)
-            en.mount_local_path ('./dml_file', '/home/qianguo/worker/dml_file')
-            en.mount_nfs (nfsApp, '/home/qianguo/worker/dml_app')
-            en.mount_nfs (nfsDataset, '/home/qianguo/worker/dataset')
-                
-            # 解析links
-        links_json = read_json (os.path.join (dirName, "task_links", str(taskId),'links.json'))
-        self.controller.load_link_user (taskId, links_json)
-
-            # 保存信息
-        self.controller.save_yml_user(taskId) # 保存yml文件到controller
-        self.controller.save_node_info() # 保存节点信息到testbed
-        self.controller.manager.load_node_info() # 保存节点信息到manager
-        self.controller.send_tc() # 将tc信息发送给worker，没有的添加，有的更新
-        self.launch_all_emulated_user(taskId, dirName)
 
     def check_and_start_tasks(self):
         """检查已调度队列并启动任务"""
         scheduled = self.controller.get_scheduled_task()
         if scheduled:
             task_id, allocation = scheduled
-            self.task_start(task_id, allocation)
+            self.controller.task_start(task_id, allocation)
 
     def _check_scheduled_tasks(self):
         """定期检查已调度的任务"""

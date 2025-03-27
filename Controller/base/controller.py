@@ -1,17 +1,21 @@
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
 from logging import Manager
+import os
 from queue import Queue
 import threading
 import time
 from typing import Dict, List, Type
 
-from flask import Flask
+from flask import Flask, json, request
 from Controller.base.link import VirtualLink
 from Controller.base.nfs import Nfs
-from Controller.base.node import EmulatedNode, Emulator, PhysicalNode
+from Controller.base.node import EmulatedNode, Emulator, Node, PhysicalNode
 from Controller.base.scheduler import Scheduler
 from Controller.base.task import Task
+from Controller.base.utils import read_json, send_data
 
+
+dirName = '/home/qianguo/controller/'
 class Controller(object):
     """
     任务接收器，负责和用户进行交互
@@ -28,7 +32,7 @@ class Controller(object):
         self.ip: str = ip
         self.port: int = 3333  # DO NOT change this port number.
         self.agentPort: int = 3333  # DO NOT change this port number.
-        self.dmlPort: int = 4444  # DO NOT change this port number.
+        self.nodePort: int = 4444  # DO NOT change this port number.
         # emulated node maps dml port to emulator's host port starting from $(base_host_port).
         self.hostPort: int = base_host_port
         self.address: str = self.ip + ':' + str(self.port)
@@ -187,7 +191,7 @@ class Controller(object):
         if emulator:
             emulator.check_resource(name, cpu, ram)
         nid = self.__next_n_id()
-        en = EmulatedNode(nid, name, nic, working_dir, cmd, self.dmlPort, self.hostPort, image, cpu, ram)
+        en = EmulatedNode(nid, name, nic, working_dir, cmd, self.nodePort, self.hostPort, image, cpu, ram)
 
         if emulator:
             self.assign_emulated_node(en, emulator)
@@ -212,3 +216,192 @@ class Controller(object):
             'NET_AGENT_ADDRESS': emulator.ipW + ':' + str(self.agentPort)
         })
         self.preMap[en.id] = emulator.idW
+
+    def load_link(self,taskId: int, links_json: Dict):
+        for name in links_json:
+            nodeName = str(taskId) + '_' + name
+            src = self.name_to_node(nodeName)
+            print(f"{nodeName}, {src}")
+            for dest_json in links_json[name]:
+                destName = str(taskId) + '_' + dest_json['dest']
+                dest = self.name_to_node(destName)
+                unit = dest_json['bw'][-4:]
+                _bw = int(dest_json['bw'][:-4])
+                print(f"{destName}, {dest}")
+                self.__add_virtual_link(src, dest, _bw, unit)
+
+    def name_to_node(self, name: str) -> Node:
+        """
+        get node by name.
+        """
+        if name in self.pNode:
+            return self.pNode[name]
+        elif name in self.eNode:
+            return self.eNode[name]
+        else:
+            Exception('no such node called ' + name)
+
+    def __add_virtual_link(self, n1: Node, n2: Node, bw: int, unit: str):
+        """
+        parameters will be passed to Linux Traffic Control.
+        n1-----bw----->>n2
+        """
+        assert bw > 0, Exception('bw is not bigger than 0')
+        assert unit in ['kbps', 'mbps'], Exception(
+            unit + ' is not in ["kbps", "mbps"]')
+        self.virtualLinkNumber += 1
+        n1.link_to(n2.name, str(bw) + unit, n2.ip, n2.hostPort)
+
+    def save_yml(self, taskId: int):
+        """
+        save the deployment of emulated nodes as yml files.
+        """
+        #TODO:改成遍历task里的emulator
+        for cs in self.emulator.values():
+            cs.save_yml(self.dirName, taskId)
+    
+    def save_node_info(self, taskId: int):
+        """
+        save the node's information as json file.
+        """
+        emulator = {}
+        e_node = {}
+        p_node = {}
+        for e in self.emulator.values():
+            emulator[e.nameW] = {'ip': e.ipW}
+            for en in e.eNode.values():
+                e_node[en.name] = {'ip': en.ip, 'port': str(en.hostPort), 'emulator': e.nameW}
+        for pn in self.pNode.values():
+            p_node[pn.name] = {'ip': pn.ip, 'port': str(pn.hostPort)}
+        file_name = (os.path.join(self.dirName, 'node_info_'+ str(taskId) +'.json'))
+        data = {'emulator': emulator, 'emulated_node': e_node, 'physical_node': p_node}
+        with open(file_name, 'w') as f:
+            f.writelines(json.dumps(data, indent=2))
+
+    
+
+    def send_tc(self):
+        self.__set_emulated_tc_listener()
+        if self.virtualLinkNumber > 0:
+            # send the tc settings to emulators.
+            self.__send_emulated_tc()
+            # send the tc settings to physical nodes.
+            self.__send_physical_tc()
+        else:
+            print('tc finish')
+
+    def __set_emulated_tc_listener(self):
+        """
+        listen message from worker/agent.py, deploy_emulated_tc ().
+        it will save the result of deploying emulated tc settings.
+        """
+
+        @self.flask.route('/emulated/tc', methods=['POST'])
+        def route_emulated_tc():
+            data: Dict = json.loads(request.form['data'])
+            for name, ret in data.items():
+                if 'msg' in ret:
+                    print('emulated node ' + name + ' tc failed, err:')
+                    print(ret['msg'])
+                elif 'number' in ret:
+                    print('emulated node ' + name + ' tc succeed')
+                    with self.lock:
+                        self.deployedCount += int(ret['number'])
+                        if self.deployedCount == self.virtualLinkNumber:
+                            print('tc finish')
+            return ''
+
+    def __send_emulated_tc(self):
+        """
+        send the tc settings to emulators.
+        this request can be received by worker/agent.py, route_emulated_tc ().
+        """
+        for emulator in self.emulator.values():
+            data = {}
+            # collect tc settings of each emulated node in this emulator.
+            for en in emulator.eNode.values():
+                data[en.name] = {
+                    'NET_NODE_NIC': en.nic,
+                    'NET_NODE_TC': en.tc,
+                    'NET_NODE_TC_IP': en.tcIP,
+                    'NET_NODE_TC_PORT': en.tcPort
+                }
+            # the emulator will deploy all tc settings of its emulated nodes.
+            print('send_emulated_tc: send to ' + emulator.nameW)
+            send_data('POST', '/emulated/tc', emulator.ipW, self.agentPort,
+                      data={'data': json.dumps(data)})
+
+    def __send_physical_tc(self):
+        """
+        send the tc settings to physical nodes.
+        this request can be received by worker/agent.py, route_physical_tc ().
+        """
+        for pn in self.pNode.values():
+            if not pn.tc:
+                print('physical node ' + pn.name + ' tc succeed')
+                continue
+            data = {
+                'NET_NODE_NIC': pn.nic,
+                'NET_NODE_TC': pn.tc,
+                'NET_NODE_TC_IP': pn.tcIP,
+                'NET_NODE_TC_PORT': pn.tcPort
+            }
+            print('physical_tc_update: send to ' + pn.name)
+            res = send_data('POST', '/physical/tc', pn.ip, self.agentPort,
+                            data={'data': json.dumps(data)})
+            if res == '':
+                print('physical node ' + pn.name + ' tc succeed')
+                with self.lock:
+                    self.deployedCount += len(pn.tc)
+                    if self.deployedCount == self.virtualLinkNumber:
+                        print('tc finish')
+            else:
+                print('physical node ' + pn.name + ' tc failed, err:')
+                print(res)
+
+    def launch_all_emulated(self):
+        """
+        send the yml files to emulators to launch all emulated node and the dml application.
+        this request can be received by worker/agent.py, route_emulated_launch ().
+        """
+        tasks = []
+        for s in self.emulator.values():
+            if s.eNode:
+                tasks.append(self.executor.submit(self.__launch_emulated, s, self.dirName))
+        os.wait(tasks, return_when=ALL_COMPLETED)
+
+    def __launch_emulated(self, emulator: Emulator, path: str):
+        with open(os.path.join(path, emulator.nameW + '.yml'), 'r') as f:
+            send_data('POST', '/emulated/launch', emulator.ipW, self.agentPort, files={'yml': f})
+
+    
+    # TODO：这个函数需要修改
+    def task_start(self, taskId: int, allocation: Dict):
+        """
+        启动相应的容器
+        """
+        # 挂载
+        nfsApp = self.controller.nfs['dml_app']
+        nfsDataset = self.controller.nfs['dataset']
+        
+        # 添加节点
+        # TODO：添加task的信息保存
+        for node_name, node_info in allocation.items():
+            emu = self.controller.emulator[node_info['emulator']]
+            en = self.controller.add_emulated_node (node_name, '/home/qianguo/worker/dml_app/'+str(taskId),
+                ['python3', 'gl_peer.py'], 'task'+str(taskId)+':v1.0', cpu=node_info['cpu'], ram=node_info['ram'], unit='G', emulator=emu)
+            # TODO:生成task实例，存储到controller中
+            en.mount_local_path ('./dml_file', '/home/qianguo/worker/dml_file')
+            en.mount_nfs (nfsApp, '/home/qianguo/worker/dml_app')
+            en.mount_nfs (nfsDataset, '/home/qianguo/worker/dataset')
+                
+        # 解析links
+        links_json = read_json (os.path.join (dirName, "task_links", str(taskId),'links.json'))
+        self.controller.load_link (taskId, links_json)
+
+        # 保存信息
+        self.save_yml(taskId) # 保存yml文件到controller
+        self.save_node_info() # 保存节点信息到testbed
+        self.manager.load_node_info() # 保存节点信息到manager
+        self.send_tc() # 将tc信息发送给worker，没有的添加，有的更新
+        self.launch_all_emulated(taskId, dirName)
