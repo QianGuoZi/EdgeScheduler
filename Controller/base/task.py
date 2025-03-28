@@ -12,17 +12,9 @@ class Task(object):
     """
     管理某个任务的生命过程
     """
-    def __init__(self, ID: int, ip: str, base_host_port: int, dir_name: str, manager_class: Type[Manager]):
+    def __init__(self, ID: int, manager_class: Type[Manager]):
         self.flask = Flask(__name__)
         self.ID: int = ID
-        self.ip: str = ip
-        self.port: int = 3333  # DO NOT change this port number.
-        self.agentPort: int = 3333  # DO NOT change this port number.
-        self.dmlPort: int = 4444  # DO NOT change this port number.
-        # emulated node maps dml port to emulator's host port starting from $(base_host_port).
-        self.hostPort: int = base_host_port
-        self.address: str = self.ip + ':' + str(self.port)
-        self.dirName: str = dir_name
 
         self.nfs: Dict[str, Nfs] = {}  # nfs tag to nfs object.
         self.pNode: Dict[str, PhysicalNode] = {}  # physical node's name to physical node object.
@@ -40,8 +32,17 @@ class Task(object):
 
         # for default manager.
         self.manager = manager_class(self)
-        self.deployedCount: int = 0
-        self.lock = threading.RLock()
-        self.executor = ThreadPoolExecutor()
-        # scheduler
-        #self.scheduler = scheduler(self)
+    
+    def add_emulator_node(self, en : EmulatedNode):
+        """
+        添加一个emulated node
+        """
+        self.eNode[en.name] = en
+        self.N[en.id] = {'name': en.name, 'cpu': en.cpu, 'ram': en.ram}
+
+    def add_emulator(self, e : Emulator):
+        """
+        添加一个emulator
+        """
+        self.emulator[e.nameW] = e
+        self.W[e.idW] = {'name': e.nameW, 'cpu': e.cpu, 'ram': e.ram}

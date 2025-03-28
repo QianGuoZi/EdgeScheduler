@@ -20,35 +20,6 @@ class Manager(object):
         self.controller = controller
         self.__load_default_route()
 
-        self.check_timer = threading.Timer(1.0, self._check_scheduled_tasks)
-        self.check_timer.daemon = True
-        self.check_timer.start()
-
-    def deploy_task(self, task_id: int, allocation: Dict) -> bool:
-        """
-        部署任务并返回是否成功
-        """
-        try:
-            # 启动容器
-            self.controller.task_start(task_id, allocation)
-            return True
-        except Exception as e:
-            print(f"部署任务 {task_id} 失败: {str(e)}")
-            return False
-
-    def check_and_start_tasks(self):
-        """检查已调度队列并启动任务"""
-        scheduled = self.controller.get_scheduled_task()
-        if scheduled:
-            task_id, allocation = scheduled
-            self.controller.task_start(task_id, allocation)
-
-    def _check_scheduled_tasks(self):
-        """定期检查已调度的任务"""
-        while True:
-            self.check_and_start_tasks()
-            time.sleep(1)
-
 
     def __load_default_route(self):
         @self.testbed.flask.route('/taskRequestFile', methods=['POST'])

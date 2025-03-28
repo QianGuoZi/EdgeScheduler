@@ -124,8 +124,8 @@ class Controller(object):
                     if task_info:
                         task_id, allocation = task_info
                         try:
-                            # 通知manager进行部署
-                            success = self.manager.deploy_task(task_id, allocation)
+                            # 进行部署
+                            success = self.deploy_task(task_id, allocation)
                             if success:
                                 # 部署成功，加入已部署队列
                                 self.deployed_tasks.put(task_id)
@@ -178,7 +178,7 @@ class Controller(object):
         self.W[wid] = {'name': name, 'cpu': cpu, 'ram': ram}
         return e
     
-    def add_emulated_node(self, name: str, working_dir: str, cmd: List[str], image: str,
+    def add_emulated_node(self, name: str, taskID: int,working_dir: str, cmd: List[str], image: str,
                           cpu: int, ram: int, unit: str, nic: str = 'eth0', emulator: Emulator = None) -> EmulatedNode:
         assert name != '', Exception('name cannot be empty')
         assert name not in self.eNode, Exception(name + ' has been used')
@@ -191,7 +191,7 @@ class Controller(object):
         if emulator:
             emulator.check_resource(name, cpu, ram)
         nid = self.__next_n_id()
-        en = EmulatedNode(nid, name, nic, working_dir, cmd, self.nodePort, self.hostPort, image, cpu, ram)
+        en = EmulatedNode(nid, name, taskID, nic, working_dir, cmd, self.nodePort, self.hostPort, image, cpu, ram)
 
         if emulator:
             self.assign_emulated_node(en, emulator)
@@ -252,15 +252,14 @@ class Controller(object):
         self.virtualLinkNumber += 1
         n1.link_to(n2.name, str(bw) + unit, n2.ip, n2.hostPort)
 
-    def save_yml(self, taskId: int):
+    def save_yml(self, taskID: int):
         """
         save the deployment of emulated nodes as yml files.
         """
-        #TODO:改成遍历task里的emulator
-        for cs in self.emulator.values():
-            cs.save_yml(self.dirName, taskId)
+        for cs in self.task[taskID].emulator.values():
+            cs.save_yml(self.dirName, taskID)
     
-    def save_node_info(self, taskId: int):
+    def save_node_info(self, taskID: int):
         """
         save the node's information as json file.
         """
@@ -273,7 +272,7 @@ class Controller(object):
                 e_node[en.name] = {'ip': en.ip, 'port': str(en.hostPort), 'emulator': e.nameW}
         for pn in self.pNode.values():
             p_node[pn.name] = {'ip': pn.ip, 'port': str(pn.hostPort)}
-        file_name = (os.path.join(self.dirName, 'node_info_'+ str(taskId) +'.json'))
+        file_name = (os.path.join(self.dirName, 'node_info_'+ str(taskID) +'.json'))
         data = {'emulator': emulator, 'emulated_node': e_node, 'physical_node': p_node}
         with open(file_name, 'w') as f:
             f.writelines(json.dumps(data, indent=2))
@@ -376,32 +375,47 @@ class Controller(object):
 
     
     # TODO：这个函数需要修改
-    def task_start(self, taskId: int, allocation: Dict):
+    def deploy_task(self, taskID: int, allocation: Dict):
         """
         启动相应的容器
         """
-        # 挂载
-        nfsApp = self.controller.nfs['dml_app']
-        nfsDataset = self.controller.nfs['dataset']
-        
-        # 添加节点
-        # TODO：添加task的信息保存
-        for node_name, node_info in allocation.items():
-            emu = self.controller.emulator[node_info['emulator']]
-            en = self.controller.add_emulated_node (node_name, '/home/qianguo/worker/dml_app/'+str(taskId),
-                ['python3', 'gl_peer.py'], 'task'+str(taskId)+':v1.0', cpu=node_info['cpu'], ram=node_info['ram'], unit='G', emulator=emu)
-            # TODO:生成task实例，存储到controller中
-            en.mount_local_path ('./dml_file', '/home/qianguo/worker/dml_file')
-            en.mount_nfs (nfsApp, '/home/qianguo/worker/dml_app')
-            en.mount_nfs (nfsDataset, '/home/qianguo/worker/dataset')
-                
-        # 解析links
-        links_json = read_json (os.path.join (dirName, "task_links", str(taskId),'links.json'))
-        self.controller.load_link (taskId, links_json)
+        try:
+            # 挂载
+            nfsApp = self.nfs['dml_app']
+            nfsDataset = self.nfs['dataset']
+            
+            # 添加节点
+            task = Task(taskID)
+            self.task[taskID] = task
+            added_emulators = set()
 
-        # 保存信息
-        self.save_yml(taskId) # 保存yml文件到controller
-        self.save_node_info() # 保存节点信息到testbed
-        self.manager.load_node_info() # 保存节点信息到manager
-        self.send_tc() # 将tc信息发送给worker，没有的添加，有的更新
-        self.launch_all_emulated(taskId, dirName)
+            for node_name, node_info in allocation.items():
+                emu = self.emulator[node_info['emulator']]
+                # 如果这个emulator还没有添加到task中，就添加它
+                if emu.nameW not in added_emulators:
+                    task.add_emulator(emu)
+                    added_emulators.add(emu.nameW)
+
+                en = self.add_emulated_node (node_name, taskID, '/home/qianguo/worker/dml_app/'+str(taskID),
+                    ['python3', 'gl_peer.py'], 'task'+str(taskID)+':v1.0', cpu=node_info['cpu'], ram=node_info['ram'], unit='G', emulator=emu)
+                task.add_emulator_node(en)
+                en.mount_local_path ('./dml_file', '/home/qianguo/worker/dml_file')
+                en.mount_nfs (nfsApp, '/home/qianguo/worker/dml_app')
+                en.mount_nfs (nfsDataset, '/home/qianguo/worker/dataset')
+                    
+            # 解析links
+            links_json = read_json (os.path.join (dirName, "task_links", str(taskID),'links.json'))
+            self.load_link (taskID, links_json)
+
+            # 保存信息
+            self.save_yml(taskID) # 保存yml文件到controller
+            # TODO :继续修改save_node_info
+            self.save_node_info(taskID) # 保存节点信息到testbed
+            self.manager.load_node_info() # 保存节点信息到manager
+            self.send_tc() # 将tc信息发送给worker，没有的添加，有的更新
+            self.launch_all_emulated(taskID, dirName)
+            return True
+        
+        except Exception as e:
+            print(f"部署任务 {taskID} 失败: {str(e)}")
+            return False

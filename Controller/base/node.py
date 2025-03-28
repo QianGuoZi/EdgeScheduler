@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 import ipaddress
+import os
 import threading
 from typing import Dict, List, Type
 from flask import Flask, request
@@ -30,15 +31,15 @@ class Node(object):
     """
     node的基类
     """
-    def __init__(self, ID: int, name: str, ip: str, nic: str, working_dir: str,
+    def __init__(self, ID: int, name: str, taskID: int,ip: str, nic: str, working_dir: str,
                  cmd: List[str], node_port: int, host_port: int):
         self.id: int = ID
         self.name: str = name
+        self.tid: int = taskID
         self.ip: str = ip
         self.nic: str = nic
         self.workingDir: str = working_dir
         self.cmd: List[str] = cmd
-        #TODO: dml_port改为node_port
         self.nodePort: int = node_port  # application listens on $(node_port). 改为node
         self.hostPort: int = host_port  # network requests are sent to $(host_port) of worker.
         self.variable: Dict[str, str] = {}  # system environment variable.
@@ -73,10 +74,10 @@ class EmulatedNode(Node):
     """
     一个用容器实现的node，部署在emulator中
     """
-    def __init__(self, ID: int, name: str, nic: str, working_dir: str, cmd: List[str], dml_port: int,
+    def __init__(self, ID: int, name: str, taskID: int,nic: str, working_dir: str, cmd: List[str], node_port: int,
                  base_host_port: int, image: str, cpu: int, ram: int):
         # host port is related to node's id, dml port maps to host port in emulator.
-        super().__init__(ID, name, '', nic, working_dir, cmd, dml_port, base_host_port + ID)
+        super().__init__(ID, name, taskID,'', nic, working_dir, cmd, node_port, base_host_port + ID)
         self.image: str = image  # Docker image.
         self.cpu = cpu  # cpu thread.
         self.ram = ram  # MB of memory.
@@ -94,11 +95,11 @@ class Emulator(Worker):
     """
     可以部署多个emulatedNode
     """
-    def __init__(self, ID: int, name: str, ip: str, cpu: int, ram: int, ip_task_controller: str):
+    def __init__(self, ID: int, name: str, ip: str, cpu: int, ram: int, ip_controller: str):
         super().__init__(ID, name, ip)
         self.cpu: int = cpu  # cpu thread.
         self.ram: int = ram  # MB of memory.
-        self.ipTaskController: str = ip_task_controller  # ip of the task controller.
+        self.ipController: str = ip_controller  # ip of the task controller.
         self.cpuPreMap: int = 0  # allocated cpu.
         self.ramPreMap: int = 0  # allocated ram.
         self.nfs: List[Nfs] = []  # mounted nfs.
@@ -127,6 +128,53 @@ class Emulator(Worker):
         self.ramPreMap -= en.ram
         del self.eNode[en.name]
     
-    def save_yml(self, path: str):
-        pass
+    def save_yml(self, path: str, taskID: int):
+        if not self.eNode:
+            return
+        str_yml = 'version: "2.1"\n'
+        if self.nfs:
+            str_yml += 'volumes:\n'
+            for nfs in self.nfs:
+                str_yml = str_yml \
+                          + '  ' + nfs.tag + ':\n' \
+                          + '    driver_opts:\n' \
+                          + '      type: "nfs"\n' \
+                          + '      o: "addr=' + self.ipController + ',ro"\n' \
+                          + '      device: ":' + nfs.path + '"\n'
+        self.curr_cpu = 0
+        str_yml += 'services:\n'
+        for en in self.eNode.values():
+            if en.tid != taskID:
+                str_yml = str_yml \
+                        + '  ' + en.name + ':\n' \
+                        + '    container_name: ' + en.name + '\n' \
+                        + '    image: ' + en.image + '\n' \
+                        + '    working_dir: ' + en.workingDir + '\n' \
+                        + '    stdin_open: true\n' \
+                        + '    tty: true\n' \
+                        + '    cap_add:\n' \
+                        + '      - NET_ADMIN\n' \
+                        + '    cpuset: ' + str(self.curr_cpu) + '-' + str(self.curr_cpu + en.cpu - 1) + '\n' \
+                        + '    mem_limit: ' + str(en.ram) + 'M\n'
+                self.curr_cpu += en.cpu
+                str_yml += '    environment:\n'
+                for key in en.variable:
+                    str_yml += '      - ' + key + '=' + en.variable[key] + '\n'
+                str_yml = str_yml \
+                        + '    healthcheck:\n' \
+                        + '      test: curl -f http://localhost:' + str(en.nodePort) + '/hi\n'
+                str_yml = str_yml \
+                        + '    ports:\n' \
+                        + '      - "' + str(en.hostPort) + ':' + str(en.nodePort) + '"\n'
+                if en.volume:
+                    str_yml += '    volumes:\n'
+                    for v in en.volume:
+                        str_yml += '      - ' + v + ':' + en.volume[v] + '\n'
+                if en.cmd:
+                    str_yml += '    command: ' + ' '.join(en.cmd) + '\n'
+
+        # save as yml file
+        yml_name = os.path.join(path, self.nameW + '_' + taskID + '.yml')
+        with open(yml_name, 'w') as f:
+            f.writelines(str_yml)
 
