@@ -174,7 +174,7 @@ class Emulator(Worker):
                     str_yml += '    command: ' + ' '.join(en.cmd) + '\n'
 
         # save as yml file
-        yml_name = os.path.join(path, self.nameW + '_' + taskID + '.yml')
+        yml_name = os.path.join(path, self.nameW + '_' + str(taskID) + '.yml')
         with open(yml_name, 'w') as f:
             f.writelines(str_yml)
 

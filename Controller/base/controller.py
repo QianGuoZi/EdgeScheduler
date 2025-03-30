@@ -263,14 +263,16 @@ class Controller(object):
         """
         save the node's information as json file.
         """
+        # 修改为通过taskID进行保存
         emulator = {}
         e_node = {}
         p_node = {}
-        for e in self.emulator.values():
+        for e in self.task[taskID].emulator.values():
             emulator[e.nameW] = {'ip': e.ipW}
             for en in e.eNode.values():
-                e_node[en.name] = {'ip': en.ip, 'port': str(en.hostPort), 'emulator': e.nameW}
-        for pn in self.pNode.values():
+                if en.tid == taskID:
+                    e_node[en.name] = {'ip': en.ip, 'port': str(en.hostPort), 'emulator': e.nameW}
+        for pn in self.task[taskID].pNode.values():
             p_node[pn.name] = {'ip': pn.ip, 'port': str(pn.hostPort)}
         file_name = (os.path.join(self.dirName, 'node_info_'+ str(taskID) +'.json'))
         data = {'emulator': emulator, 'emulated_node': e_node, 'physical_node': p_node}
@@ -310,12 +312,12 @@ class Controller(object):
                             print('tc finish')
             return ''
 
-    def __send_emulated_tc(self):
+    def __send_emulated_tc(self, taskID: int):
         """
         send the tc settings to emulators.
         this request can be received by worker/agent.py, route_emulated_tc ().
         """
-        for emulator in self.emulator.values():
+        for emulator in self.task[taskID].emulator.values():
             data = {}
             # collect tc settings of each emulated node in this emulator.
             for en in emulator.eNode.values():
@@ -358,23 +360,22 @@ class Controller(object):
                 print('physical node ' + pn.name + ' tc failed, err:')
                 print(res)
 
-    def launch_all_emulated(self):
+    def launch_all_emulated(self, taskID: int):
         """
         send the yml files to emulators to launch all emulated node and the dml application.
         this request can be received by worker/agent.py, route_emulated_launch ().
         """
         tasks = []
-        for s in self.emulator.values():
+        for s in self.task[taskID].emulator.values():
             if s.eNode:
                 tasks.append(self.executor.submit(self.__launch_emulated, s, self.dirName))
         os.wait(tasks, return_when=ALL_COMPLETED)
 
-    def __launch_emulated(self, emulator: Emulator, path: str):
-        with open(os.path.join(path, emulator.nameW + '.yml'), 'r') as f:
+    def __launch_emulated(self, emulator: Emulator, taskID: int,path: str):
+        with open(os.path.join(path, emulator.nameW + '_' + str(taskID) + '.yml'), 'r') as f:
             send_data('POST', '/emulated/launch', emulator.ipW, self.agentPort, files={'yml': f})
 
-    
-    # TODO：这个函数需要修改
+    # 好像大概初步改完了
     def deploy_task(self, taskID: int, allocation: Dict):
         """
         启动相应的容器
@@ -409,10 +410,9 @@ class Controller(object):
 
             # 保存信息
             self.save_yml(taskID) # 保存yml文件到controller
-            # TODO :继续修改save_node_info
             self.save_node_info(taskID) # 保存节点信息到testbed
-            self.manager.load_node_info() # 保存节点信息到manager
-            self.send_tc() # 将tc信息发送给worker，没有的添加，有的更新
+            # 修改
+            self.send_tc(taskID) # 将tc信息发送给worker，没有的添加，有的更新
             self.launch_all_emulated(taskID, dirName)
             return True
         
