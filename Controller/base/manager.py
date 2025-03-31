@@ -3,13 +3,13 @@ import os
 import shutil
 import threading
 import time
-from typing import Dict
+from typing import Dict, List
 import zipfile
 
-from flask import request
+from flask import json, request
 
 from Controller.base.controller import Controller
-from Controller.base.utils import read_json
+from Controller.base.utils import read_json, send_data
 
 dirName = '/home/qianguo/controller/'
 class Manager(object):
@@ -137,6 +137,7 @@ class Manager(object):
         #         print(f"node name: {node}, node object: {node_info}")
         #     return allocation
 
+        # TODO：暂时用不上
         @self.testbed.flask.route('/getTaskStatus', methods=['GET'])
         def route_get_task_status():
             """
@@ -150,3 +151,96 @@ class Manager(object):
             elif task_id in self.controller.pending_tasks.queue:
                 return 'Task pending'
             return 'Task not found'
+        
+        @self.testbed.flask.route('/print', methods=['POST'])
+        def route_print():
+            """
+            listen message from worker/worker_utils.py, send_print ().
+            it will print the ${msg}.
+            """
+            print(request.form['msg'])
+            # self.testbed.executor.submit(self.__send_logs_to_backend, request.form['msg'])
+            return ''
+        
+        # TODO: 修改tc过程
+        @self.testbed.flask.route('/update/tc', methods=['GET'])
+        def route_update_tc():
+            """
+            you can send a GET request to this /update/tc to update the
+            tc settings of physical and emulated nodes.
+            """
+
+            def update_physical_tc(_physical, _agent_port: int):
+                """
+                send the tc settings to a physical node.
+                this request can be received by worker/agent.py, route_physical_tc ().
+                """
+                _data = {
+                    'NET_NODE_NIC': _physical.nic,
+                    'NET_NODE_TC': _physical.tc,
+                    'NET_NODE_TC_IP': _physical.tcIP,
+                    'NET_NODE_TC_PORT': _physical.tcPort
+                }
+                print('update_physical_tc: send to ' + _physical.name)
+                _res = send_data('POST', '/physical/tc', _physical.ip, _agent_port,
+                                 data={'data': json.dumps(_data)})
+                if _res == '':
+                    print('physical node ' + _physical.name + ' update tc succeed')
+                else:
+                    print('physical node ' + _physical.name + ' update tc failed, err:')
+                    print(_res)
+
+            def update_emulated_tc(_data: Dict, _emulator_ip: str, _agent_port: int):
+                """
+                send the tc settings to an emulator.
+                this request can be received by worker/agent.py, route_emulated_tc_update ().
+                """
+                print('update_emulated_tc: send to ' + ', '.join(_data.keys()))
+                _res = send_data('POST', '/emulated/tc/update', _emulator_ip, _agent_port,
+                                 data={'data': json.dumps(_data)})
+                _ret = json.loads(_res)
+                for _name in _ret:
+                    if 'msg' in _ret[_name]:
+                        print('emulated node ' + _name + ' update tc failed, err:')
+                        print(_ret[_name]['msg'])
+                    else:
+                        print('emulated node ' + _name + ' update tc succeed')
+
+            time_start = time.time()
+            filename = request.args.get('file')
+            if filename[0] != '/':
+                filename = os.path.join(self.controller.dirName, filename)
+
+            with open(filename, 'r') as f:
+                all_nodes = []
+                # emulator's ip to emulated nodes in this emulator.
+                emulator_ip_to_node: Dict[str, List] = {}
+                links_json = json.loads(f.read().replace('\'', '\"'))
+                for name in links_json:
+                    n = self.controller.name_to_node(name)
+                    all_nodes.append(n)
+                    n.tc.clear()
+                    n.tcIP.clear()
+                    n.tcPort.clear()
+                self.controller.load_link(links_json)
+                for node in all_nodes:
+                    if node.name in self.controller.pNode:
+                        self.controller.executor.submit(update_physical_tc, node,
+                                                     self.controller.agentPort)
+                    else:
+                        emulator_ip = node.ip
+                        emulator_ip_to_node.setdefault(emulator_ip, []).append(node)
+                for emulator_ip in emulator_ip_to_node:
+                    data = {}
+                    for en in emulator_ip_to_node[emulator_ip]:
+                        data[en.name] = {
+                            'NET_NODE_NIC': en.nic,
+                            'NET_NODE_TC': en.tc,
+                            'NET_NODE_TC_IP': en.tcIP,
+                            'NET_NODE_TC_PORT': en.tcPort
+                        }
+                    self.controller.executor.submit(update_emulated_tc, data, emulator_ip,
+                                                 self.controller.agentPort)
+            time_end = time.time()
+            print('update tc time all cost', time_end - time_start, 's')
+            return ''
