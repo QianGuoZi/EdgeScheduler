@@ -161,7 +161,6 @@ class Controller(object):
             self.deploy_thread.join()
 
 
-    # TODO：修改以下方法
     def add_emulator(self, name: str, ip: str, cpu: int, ram: int, unit: str) -> Emulator:
         assert name != '', Exception('name cannot be empty')
         assert name not in self.emulator, Exception(name + ' has been used')
@@ -279,8 +278,6 @@ class Controller(object):
         with open(file_name, 'w') as f:
             f.writelines(json.dumps(data, indent=2))
 
-    
-
     def send_tc(self):
         self.__set_emulated_tc_listener()
         if self.virtualLinkNumber > 0:
@@ -375,8 +372,29 @@ class Controller(object):
         with open(os.path.join(path, emulator.nameW + '_' + str(taskID) + '.yml'), 'r') as f:
             send_data('POST', '/emulated/launch', emulator.ipW, self.agentPort, files={'yml': f})
 
+    def __build_emulated_env(self, tag: str, path1: str, path2: str):
+        """
+        send the Dockerfile and pip requirements.txt to emulators to build the execution environment.
+        this request can be received by worker/agent.py, route_emulated_build ().
+        @param tag: docker image name:version.
+        @param path1: path of Dockerfile.
+        @param path2: path of pip requirements.txt.
+        @return:
+        """
+        tasks = [self.executor.submit(self.__build_emulated_env_helper, e, tag, path1, path2)
+                 for e in self.emulator.values()]
+        os.wait(tasks, return_when=ALL_COMPLETED)
+
+    def __build_emulated_env_helper(self, emulator: Emulator, tag: str, path1: str, path2: str):
+        with open(path1, 'r') as f1, open(path2, 'r') as f2:
+            print('build_emulated_env: send to ' + emulator.nameW)
+            res = send_data('POST', '/emulated/build', emulator.ipW, self.agentPort,
+                            data={'tag': tag}, files={'Dockerfile': f1, 'dml_req': f2})
+            if res == '1':
+                print(emulator.nameW + ' build succeed')
+
     # 好像大概初步改完了
-    def deploy_task(self, taskID: int, allocation: Dict):
+    def deploy_task(self, taskID: int, allocation: Dict, build_emulated_env: bool = False):
         """
         启动相应的容器
         """
@@ -404,6 +422,10 @@ class Controller(object):
                 en.mount_nfs (nfsApp, '/home/qianguo/worker/dml_app')
                 en.mount_nfs (nfsDataset, '/home/qianguo/worker/dataset')
                     
+            if build_emulated_env:
+                path_dockerfile = os.path.join(self.dirName, 'dml_app/'+ str(taskID) +'/Dockerfile')
+                path_req = os.path.join(self.dirName, 'dml_app/'+ str(taskID) +'/dml_req.txt')
+                self.__build_emulated_env('task'+str(taskID)+':v1.0', path_dockerfile, path_req)
             # 解析links
             links_json = read_json (os.path.join (dirName, "task_links", str(taskID),'links.json'))
             self.load_link (taskID, links_json)

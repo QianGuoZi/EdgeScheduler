@@ -202,19 +202,6 @@ def route_emulated_tc_update ():
 	os.wait (tasks, return_when=ALL_COMPLETED)
 	return json.dumps (ret)
 
-@app.route('/emulated/node/stop', methods=['GET'])
-def route_emulated_node_stop():
-    # 从controller层获取暂停指令，heartbeat会清空，用docker-compose暂停某个容器
-    time_start = time.time()
-    node_name = request.args.get('node_name')
-    print(node_name)
-    cmd = 'sudo docker-compose -f ' + hostname + '.yml stop ' + node_name
-    print(cmd)
-    sp.Popen(cmd, shell=True, stdout=sp.DEVNULL, stderr=sp.STDOUT).wait()
-    time_end = time.time()
-    print('stop time cost', time_end - time_start, 's')
-    return ''
-
 @app.route ('/emulated/build', methods=['POST'])
 def route_emulated_build ():
 	# 从controller层获取模拟器docker相关的信息ym文件，创建image
@@ -222,9 +209,15 @@ def route_emulated_build ():
 	listen file from controller/base/node.py, build_emulated_env ().
 	it will use these files to build a docker image.
 	"""
-	path = os.path.join (dirname, 'Dockerfile')
-	request.files.get ('Dockerfile').save (path)
-	request.files.get ('dml_req').save (os.path.join (dirname, 'dml_req.txt'))
+	taskID = request.args.get ('taskID')
+	task_dir = os.path.join(dirname, taskID)
+    # 确保目标目录存在
+	os.makedirs(task_dir, exist_ok=True)
+    # 保存文件
+	path = os.path.join(task_dir, 'Dockerfile')
+	request.files.get('Dockerfile').save(path)
+	request.files.get('dml_req').save(os.path.join(task_dir, 'dml_req.txt'))
+	
 	tag = request.form ['tag']
 	cmd = 'sudo docker build -t ' + tag + ' -f ' + path + ' .'
 	print (cmd)
@@ -247,14 +240,17 @@ def route_emulated_launch ():
 	it will launch the yml file.
 	"""
 	heartbeat.clear ()
-	taskId = request.form['taskId']
-	filename = os.path.join (dirname, hostname + '_' + str(taskId) + '.yml')
+	taskID = request.form['taskID']
+	task_dir = os.path.join(dirname, taskID)
+	os.makedirs(task_dir, exist_ok=True)
+	filename = os.path.join (task_dir, hostname + '.yml')
 	request.files.get ('yml').save (filename)
 	cmd = 'sudo COMPOSE_HTTP_TIMEOUT=120 docker-compose -f ' + filename + ' up'
 	print (cmd)
 	sp.Popen (cmd, shell=True, stderr=sp.STDOUT)
 	return ''
 
+#TODO: 修改以下方法
 @app.route ('/emulated/stop', methods=['GET'])
 def route_emulated_stop ():
 	# 从controller层获取暂停指令，heartbeat会清空，用docker-compose暂停容器
@@ -262,7 +258,10 @@ def route_emulated_stop ():
 	listen message from controller/base/manager.py, stop_emulated ().
 	it will stop the above yml file.
 	"""
-	cmd = 'sudo docker-compose -f ' + hostname + '.yml stop'
+	taskID = request.form['taskID']
+	task_dir = os.path.join(dirname, taskID)
+	filename = os.path.join (task_dir, hostname + '.yml')
+	cmd = 'sudo docker-compose -f ' + filename + ' stop'
 	print (cmd)
 	sp.Popen (cmd, shell=True, stdout=sp.DEVNULL, stderr=sp.STDOUT).wait ()
 	heartbeat.clear ()

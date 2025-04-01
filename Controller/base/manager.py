@@ -1,7 +1,6 @@
-import abc
+from concurrent.futures import ALL_COMPLETED
 import os
 import shutil
-import threading
 import time
 from typing import Dict, List
 import zipfile
@@ -162,7 +161,6 @@ class Manager(object):
             # self.testbed.executor.submit(self.__send_logs_to_backend, request.form['msg'])
             return ''
         
-        # TODO: 修改tc过程
         @self.testbed.flask.route('/update/tc', methods=['GET'])
         def route_update_tc():
             """
@@ -244,3 +242,24 @@ class Manager(object):
             time_end = time.time()
             print('update tc time all cost', time_end - time_start, 's')
             return ''
+        
+        #TODO: 需要从停止emulator所有节点改为停止某个任务下的所有emulated节点
+        @self.testbed.flask.route('/emulated/stop', methods=['GET'])
+        def route_emulated_stop():
+            """
+            send a stop message to emulators.
+            stop emulated nodes without remove them.
+            this request can be received by worker/agent.py, route_emulated_stop ().
+            """
+            self.__stop_all_emulated()
+            return ''
+        
+    def __stop_all_emulated(self, taskID: int):
+        def stop_emulated(_emulator_ip: str, _agent_port: int):
+            send_data('GET', '/emulated/stop', _emulator_ip, _agent_port)
+
+        tasks = []
+        for s in self.controller.task[taskID].emulator.values():
+            if s.eNode:
+                tasks.append(self.controller.executor.submit(stop_emulated, s.ipW, self.controller.agentPort))
+        os.wait(tasks, return_when=ALL_COMPLETED)
