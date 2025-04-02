@@ -1,4 +1,4 @@
-from concurrent.futures import ALL_COMPLETED
+from concurrent.futures import wait, ALL_COMPLETED
 import os
 import shutil
 import time
@@ -122,9 +122,9 @@ class Manager(object):
             2. 定期检查已调度队列
             3. 当发现已调度的任务时启动对应容器
             """
-            task_id = request.args.get('taskId')
+            taskID = int(request.args.get('taskId'))
             # 将任务添加到待调度队列
-            self.controller.add_pending_task(task_id)
+            self.controller.add_pending_task(taskID)
             return 'Task submitted for scheduling'
         
         # def task_schedule(taskId: int):
@@ -142,12 +142,12 @@ class Manager(object):
             """
             获取任务状态
             """
-            task_id = int(request.args.get('taskId'))
-            if task_id in self.controller.get_deployed_tasks():
+            taskID = int(request.args.get('taskId'))
+            if taskID in self.controller.get_deployed_tasks():
                 return 'Task deployed'
-            elif any(t[0] == task_id for t in self.controller.scheduled_tasks.queue):
+            elif any(t[0] == taskID for t in self.controller.scheduled_tasks.queue):
                 return 'Task scheduled'
-            elif task_id in self.controller.pending_tasks.queue:
+            elif taskID in self.controller.pending_tasks.queue:
                 return 'Task pending'
             return 'Task not found'
         
@@ -243,7 +243,6 @@ class Manager(object):
             print('update tc time all cost', time_end - time_start, 's')
             return ''
         
-        #TODO: 需要从停止emulator所有节点改为停止某个任务下的所有emulated节点
         @self.testbed.flask.route('/emulated/stop', methods=['GET'])
         def route_emulated_stop():
             """
@@ -251,15 +250,59 @@ class Manager(object):
             stop emulated nodes without remove them.
             this request can be received by worker/agent.py, route_emulated_stop ().
             """
-            self.__stop_all_emulated()
+            taskID = int(request.args.get('taskId'))
+            self.__stop_all_emulated(taskID)
             return ''
+        
+        @self.testbed.flask.route('/emulated/clear', methods=['GET'])
+        def route_emulated_clear():
+            """
+            send a clear message to emulators.
+            stop emulated nodes and remove them.
+            this request can be received by worker/agent.py, route_emulated_clear ().
+            """
+            taskID = int(request.args.get('taskId'))
+            self.__clear_all_emulated(taskID)
+            return ''
+        
+        @self.testbed.flask.route('/emulated/reset', methods=['GET'])
+        def route_emulated_reset():
+            """
+            send a reset message to emulators.
+            remove emulated nodes, volumes and network bridges.
+            this request can be received by worker/agent.py, route_emulated_reset ().
+            """
+            taskID = int(request.args.get('taskId'))
+            self.__reset_all_emulated(taskID)
+            return ''
+
         
     def __stop_all_emulated(self, taskID: int):
         def stop_emulated(_emulator_ip: str, _agent_port: int):
-            send_data('GET', '/emulated/stop', _emulator_ip, _agent_port)
+            send_data('GET', '/emulated/stop?taskID=' + str(taskID), _emulator_ip, _agent_port)
 
         tasks = []
         for s in self.controller.task[taskID].emulator.values():
             if s.eNode:
                 tasks.append(self.controller.executor.submit(stop_emulated, s.ipW, self.controller.agentPort))
-        os.wait(tasks, return_when=ALL_COMPLETED)
+        wait(tasks, return_when=ALL_COMPLETED)
+
+    def __clear_all_emulated(self, taskID: int):
+        def clear_emulated(_emulator_ip: str, _agent_port: int):
+            send_data('GET', '/emulated/clear?taskID=' + str(taskID), _emulator_ip, _agent_port)
+
+        tasks = []
+        for s in self.controller.task[taskID].emulator.values():
+            if s.eNode:
+                tasks.append(self.controller.executor.submit(clear_emulated, s.ipW, self.controller.agentPort))
+        wait(tasks, return_when=ALL_COMPLETED)
+
+    def __reset_all_emulated(self, taskID: int):
+        def reset_emulated(_emulator_ip: str, _agent_port: int):
+            send_data('GET', '/emulated/reset?taskID=' + str(taskID), _emulator_ip, _agent_port)
+
+        tasks = []
+        for s in self.controller.task[taskID].emulator.values():
+            if s.eNode:
+                tasks.append(self.controller.executor.submit(reset_emulated, s.ipW, self.controller.agentPort))
+        wait(tasks, return_when=ALL_COMPLETED)

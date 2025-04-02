@@ -240,7 +240,7 @@ def route_emulated_launch ():
 	it will launch the yml file.
 	"""
 	heartbeat.clear ()
-	taskID = request.form['taskID']
+	taskID = request.args.get ('taskID')
 	task_dir = os.path.join(dirname, taskID)
 	os.makedirs(task_dir, exist_ok=True)
 	filename = os.path.join (task_dir, hostname + '.yml')
@@ -250,7 +250,6 @@ def route_emulated_launch ():
 	sp.Popen (cmd, shell=True, stderr=sp.STDOUT)
 	return ''
 
-#TODO: 修改以下方法
 @app.route ('/emulated/stop', methods=['GET'])
 def route_emulated_stop ():
 	# 从controller层获取暂停指令，heartbeat会清空，用docker-compose暂停容器
@@ -258,7 +257,7 @@ def route_emulated_stop ():
 	listen message from controller/base/manager.py, stop_emulated ().
 	it will stop the above yml file.
 	"""
-	taskID = request.form['taskID']
+	taskID = request.args.get ('taskID')
 	task_dir = os.path.join(dirname, taskID)
 	filename = os.path.join (task_dir, hostname + '.yml')
 	cmd = 'sudo docker-compose -f ' + filename + ' stop'
@@ -267,19 +266,6 @@ def route_emulated_stop ():
 	heartbeat.clear ()
 	return ''
 
-@app.route('/emulated/node/remove', methods=['GET'])
-def route_emulated_node_remove():
-    time_start = time.time()
-    # 从controller层获取移除指令，heartbeat会清空，用docker-compose移除某个容器
-    node_name = request.args.get('node_name')
-    cmd = 'sudo docker-compose -f ' + hostname + '.yml stop ' + node_name + ' && sudo docker-compose -f ' \
-          + hostname + '.yml rm -f ' + node_name
-    print(cmd)
-    sp.Popen(cmd, shell=True, stdout=sp.DEVNULL, stderr=sp.STDOUT).wait()
-    time_end = time.time()
-    print('docker remove time cost', time_end - time_start, 's')
-    return ''
-
 @app.route ('/emulated/clear', methods=['GET'])
 def route_emulated_clear ():
 	# 从controller层获取终止指令，heartbeat会清空，用docker-compose终止容器，删除yml文件
@@ -287,10 +273,27 @@ def route_emulated_clear ():
 	listen message from controller/base/manager.py, clear_emulated ().
 	it will clear the above yml file.
 	"""
-	cmd = 'sudo docker-compose -f ' + hostname + '.yml down -v'
+	taskID = request.args.get ('taskID')
+	task_dir = os.path.join(dirname, taskID)
+	filename = os.path.join (task_dir, hostname + '.yml')
+	cmd = 'sudo docker-compose -f ' + filename + '.yml down -v'
 	print (cmd)
 	sp.Popen (cmd, shell=True, stdout=sp.DEVNULL, stderr=sp.STDOUT).wait ()
 	heartbeat.clear ()
+	return ''
+
+#目前用不上
+@app.route('/emulated/node/remove', methods=['GET'])
+def route_emulated_node_remove():
+    # 从controller层获取移除指令，heartbeat会清空，用docker-compose移除某个容器
+	taskID = request.args.get ('taskID')
+	node_name = request.args.get('node_name')
+	task_dir = os.path.join(dirname, taskID)
+	filename = os.path.join (task_dir, hostname + '.yml')
+	cmd = 'sudo docker-compose -f ' + filename + ' stop ' + node_name + ' && sudo docker-compose -f ' \
+          + filename + ' rm -f ' + node_name
+	print(cmd)
+	sp.Popen(cmd, shell=True, stdout=sp.DEVNULL, stderr=sp.STDOUT).wait()
 	return ''
 
 @app.route ('/emulated/reset', methods=['GET'])
@@ -308,5 +311,6 @@ def route_emulated_reset ():
 		sp.Popen (c, shell=True, stdout=sp.DEVNULL, stderr=sp.STDOUT).wait ()
 	heartbeat.clear ()
 	return ''
+
 
 app.run (host='0.0.0.0', port=agent_port, threaded=True)
