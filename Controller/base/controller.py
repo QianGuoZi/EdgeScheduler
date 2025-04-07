@@ -20,7 +20,7 @@ class Controller(object):
     """
     任务接收器，负责和用户进行交互
     """
-    def __init__(self, ip: str, base_host_port: int, dir_name: str, manager: Manager):
+    def __init__(self, ip: str, base_host_port: int, dir_name: str, manager: Manager, scheduler: Scheduler):
         self.currWID: int = 0  # build-in worker ID.
         self.currRID: int = 0  # build-in real link ID.
         self.currNID: int = 0  # build-in node ID.
@@ -99,6 +99,17 @@ class Controller(object):
         """
         self.currTID += 1
         return self.currTID
+    
+    def add_nfs(self, tag: str, path: str, ip: str = '', mask: int = 16) -> Nfs:
+        assert tag != '', Exception('tag cannot be empty')
+        assert tag not in self.nfs, Exception(tag + ' has been used')
+        assert 0 < mask <= 32, Exception(str(mask) + ' is not in range (0, 32]')
+        assert path[0] == '/', Exception(path + ' is not an absolute path')
+        if ip == '':
+            ip = self.ip
+        nfs = Nfs(tag, path, ip, mask)
+        self.nfs[tag] = nfs
+        return nfs
        
     def _schedule_loop(self):
         """持续检查待调度队列并进行调度"""
@@ -160,7 +171,6 @@ class Controller(object):
         if self.deploy_thread.is_alive():
             self.deploy_thread.join()
 
-
     def add_emulator(self, name: str, ip: str, cpu: int, ram: int, unit: str) -> Emulator:
         assert name != '', Exception('name cannot be empty')
         assert name not in self.emulator, Exception(name + ' has been used')
@@ -177,6 +187,16 @@ class Controller(object):
         self.W[wid] = {'name': name, 'cpu': cpu, 'ram': ram}
         return e
     
+    def send_emulator_info(self):
+        """
+        send the ${ip:port} and emulator's name to emulators.
+        this request can be received by worker/agent.py, route_emulator_info ().
+        """
+        for e in self.emulator.values():
+            print('send_emulator_info: send to ' + e.nameW)
+            send_data('GET', '/emulator/info?address=' + self.address + '&name=' + e.nameW,
+                      e.ipW, self.agentPort)
+
     def add_emulated_node(self, name: str, taskID: int,working_dir: str, cmd: List[str], image: str,
                           cpu: int, ram: int, unit: str, nic: str = 'eth0', emulator: Emulator = None) -> EmulatedNode:
         assert name != '', Exception('name cannot be empty')
