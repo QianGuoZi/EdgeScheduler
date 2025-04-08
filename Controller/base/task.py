@@ -8,13 +8,17 @@ from Controller.base.node import EmulatedNode, Emulator, PhysicalNode
 
 from flask import Flask, request
 
+from Controller.base.taskManger import taskManager
+
+dirName = '/home/qianguo/controller/'
 class Task(object):
     """
     管理某个任务的生命过程
     """
-    def __init__(self, ID: int, manager_class: Type[Manager]):
+    def __init__(self, ID: int, dir_name: str, manager_class: Type[taskManager]):
         self.flask = Flask(__name__)
         self.ID: int = ID
+        self.dirName: str = dir_name
 
         self.nfs: Dict[str, Nfs] = {}  # nfs tag to nfs object.
         self.pNode: Dict[str, PhysicalNode] = {}  # physical node's name to physical node object.

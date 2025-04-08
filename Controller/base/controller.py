@@ -55,13 +55,13 @@ class Controller(object):
         self.preMap: Dict[int, int] = {}  # node ID to worker ID.
 
         # for default manager.
-        self.manager = manager
+        self.manager = manager(self)
         self.deployedCount: int = 0
         self.lock = threading.RLock()
         self.executor = ThreadPoolExecutor()
         
         # scheduler
-        self.scheduler = Scheduler(self)
+        self.scheduler = scheduler
 
         # 添加三个队列
         self.pending_tasks = Queue()  # 待调度任务队列

@@ -1,6 +1,7 @@
 from concurrent.futures import wait, ALL_COMPLETED
 import os
 import shutil
+import threading
 import time
 from typing import Dict, List
 import zipfile
@@ -274,8 +275,7 @@ class Manager(object):
             """
             taskID = int(request.args.get('taskId'))
             self.__reset_all_emulated(taskID)
-            return ''
-
+            return ''  
         
     def __stop_all_emulated(self, taskID: int):
         def stop_emulated(_emulator_ip: str, _agent_port: int):
@@ -306,3 +306,8 @@ class Manager(object):
             if s.eNode:
                 tasks.append(self.controller.executor.submit(reset_emulated, s.ipW, self.controller.agentPort))
         wait(tasks, return_when=ALL_COMPLETED)
+
+    def __after_log(self):
+        time.sleep(5)
+        print('try to stop all emulated nodes')
+        self.__stop_all_emulated()
