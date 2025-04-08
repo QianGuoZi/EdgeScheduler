@@ -67,8 +67,8 @@ class Manager(object):
                     os.makedirs(target_links_json_path)
                 shutil.copy2(links_json_path, target_links_json_path)
 
-                # 复制 manager.py到task_manager/{taskId}/ml_manager.py
-                manager_path = os.path.join(current_directory, 'ml_manager.py')
+                # 复制 manager.py到task_manager/{taskId}/user_manager.py
+                manager_path = os.path.join(current_directory, 'task_manager.py')
                 target_manager_path = os.path.join(dirName, "task_manager", str(taskId))
                 if not os.path.exists(target_manager_path) :
                     os.makedirs(target_manager_path)

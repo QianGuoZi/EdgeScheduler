@@ -19,6 +19,7 @@ class Task(object):
         self.flask = Flask(__name__)
         self.ID: int = ID
         self.dirName: str = dir_name
+        self.agentPort: int = 3333  # DO NOT change this port number.
 
         self.nfs: Dict[str, Nfs] = {}  # nfs tag to nfs object.
         self.pNode: Dict[str, PhysicalNode] = {}  # physical node's name to physical node object.
@@ -33,6 +34,8 @@ class Task(object):
         self.RConnect: List[List[List[int]]]  # workers adjacency matrix.
         self.VConnect: List[List[List[int]]]  # nodes adjacency matrix.
         self.preMap: Dict[int, int] = {}  # node ID to worker ID.
+
+        self.executor = ThreadPoolExecutor()
 
         # for default manager.
         self.manager = manager_class(self)

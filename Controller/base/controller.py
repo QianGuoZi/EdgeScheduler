@@ -5,6 +5,9 @@ from queue import Queue
 import threading
 import time
 from typing import Dict, List, Type
+import inspect
+import importlib.util
+from Controller.base.taskManger import taskManager
 
 from flask import Flask, json, request
 from Controller.base.link import VirtualLink
@@ -422,9 +425,14 @@ class Controller(object):
             # 挂载
             nfsApp = self.nfs['dml_app']
             nfsDataset = self.nfs['dataset']
+
+            # 动态加载用户的TaskManager子类
+            manager_file_path = os.path.join(self.dirName, 'task_manager', str(taskID), 'task_manager.py')
+            manager_class = load_task_manager_class(manager_file_path)
             
             # 添加节点
-            task = Task(taskID)
+            # TODO 要动态获取类，创造实例
+            task = Task(taskID, self.dirName, taskManager=manager_class)
             self.task[taskID] = task
             added_emulators = set()
 
@@ -461,3 +469,26 @@ class Controller(object):
         except Exception as e:
             print(f"部署任务 {taskID} 失败: {str(e)}")
             return False
+
+def load_task_manager_class(file_path: str) -> Type[taskManager]:
+    """动态加载用户的TaskManager子类"""
+    try:
+        # 获取模块名称
+        module_name = file_path.split('/')[-1].replace('.py', '')
+        
+        # 动态加载模块
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        
+        # 查找继承自taskManager的类
+        for name, obj in inspect.getmembers(module):
+            if (inspect.isclass(obj) and 
+                issubclass(obj, taskManager) and 
+                obj != taskManager):
+                return obj
+                
+        raise ValueError("未找到taskManager的子类")
+    except Exception as e:
+        print(f"加载用户管理器类失败: {str(e)}")
+        raise

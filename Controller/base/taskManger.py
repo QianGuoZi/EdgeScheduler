@@ -1,4 +1,5 @@
 import abc
+from concurrent.futures import wait, ALL_COMPLETED
 import os
 import threading
 import time
@@ -74,6 +75,7 @@ class taskManager(metaclass=abc.ABCMeta):
             user need to implement self.parse_log_file () by extend this class.
             """
             name = request.args.get('name')
+            taskID = request.args.get('taskId')
             print('get ' + name + '\'s log')
             request.files.get('log').save(os.path.join(self.logFileFolder, name + '.log'))
             with self.lock:
@@ -87,8 +89,9 @@ class taskManager(metaclass=abc.ABCMeta):
                         self.parse_log_file(request, filename)
                     print('log files parsing completed, saved on ' + self.logFileFolder + '/png')
                     self.logFile.clear()
-                    self.testbed.executor.submit(self.__after_log)
+                    self.task.executor.submit(self.__after_log)
             return ''
+        
     @abc.abstractmethod
     def on_route_start(self, req: request) -> str:
         pass
@@ -100,3 +103,18 @@ class taskManager(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def parse_log_file(self, req: request, filename: str):
         pass
+    
+    def __stop_all_emulated(self):
+        def stop_emulated(_emulator_ip: str, _agent_port: int):
+            send_data('GET', '/emulated/stop', _emulator_ip, _agent_port)
+
+        tasks = []
+        for s in self.task.emulator.values():
+            if s.eNode:
+                tasks.append(self.task.executor.submit(stop_emulated, s.ipW, self.task.agentPort))
+        wait(tasks, return_when=ALL_COMPLETED)
+
+    def __after_log(self):
+        time.sleep(5)
+        print('try to stop all emulated nodes')
+        self.__stop_all_emulated()
