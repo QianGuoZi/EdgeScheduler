@@ -1,6 +1,6 @@
 import os
 
-from Controller.base.scheduler import Scheduler
+from base.scheduler import Scheduler
 from base import default_testbed
 from base.manager import Manager
 

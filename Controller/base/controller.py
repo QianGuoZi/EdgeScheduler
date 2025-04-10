@@ -7,15 +7,15 @@ import time
 from typing import Dict, List, Type
 import inspect
 import importlib.util
-from Controller.base.taskManger import taskManager
+from .taskManger import taskManager
 
 from flask import Flask, json, request
-from Controller.base.link import VirtualLink
-from Controller.base.nfs import Nfs
-from Controller.base.node import EmulatedNode, Emulator, Node, PhysicalNode
-from Controller.base.scheduler import Scheduler
-from Controller.base.task import Task
-from Controller.base.utils import read_json, send_data
+from .link import VirtualLink
+from .nfs import Nfs
+from .node import EmulatedNode, Emulator, Node, PhysicalNode
+from .scheduler import Scheduler
+from .task import Task
+from .utils import read_json, send_data
 
 
 dirName = '/home/qianguo/controller/'

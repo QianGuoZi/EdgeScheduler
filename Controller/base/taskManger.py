@@ -6,9 +6,7 @@ import time
 from typing import Dict, List
 
 from flask import request
-from Controller.base.task import Task
-from Controller.base.utils import send_data
-from manager import Manager
+from .utils import send_data
 
 class NodeInfo(object):
     def __init__(self, name: str, ip: str, port: int):
@@ -20,7 +18,7 @@ class taskManager(metaclass=abc.ABCMeta):
     """
     负责任务的部署、资源调整、任务状态监控等
     """
-    def __init__(self, task: Task):
+    def __init__(self, task):
         self.task = task
         self.eNode: Dict[str, NodeInfo] = {}
         self.pNode: Dict[str, NodeInfo] = {}

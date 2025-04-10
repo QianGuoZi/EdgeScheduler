@@ -5,8 +5,6 @@ import threading
 from typing import Dict, List, Type
 from flask import Flask, request
 
-from .link import RealLink, VirtualLink
-from .manager import Manager
 from .nfs import Nfs
 
 

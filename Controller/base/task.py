@@ -2,13 +2,13 @@ from concurrent.futures import ThreadPoolExecutor
 from logging import Manager
 import threading
 from typing import Dict, List, Type
-from Controller.base.link import VirtualLink
-from Controller.base.nfs import Nfs
-from Controller.base.node import EmulatedNode, Emulator, PhysicalNode
+from .link import VirtualLink
+from .nfs import Nfs
+from .node import EmulatedNode, Emulator, PhysicalNode
 
 from flask import Flask, request
 
-from Controller.base.taskManger import taskManager
+from .taskManger import taskManager
 
 dirName = '/home/qianguo/controller/'
 class Task(object):

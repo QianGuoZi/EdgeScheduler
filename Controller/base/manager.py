@@ -8,21 +8,20 @@ import zipfile
 
 from flask import json, request
 
-from Controller.base.controller import Controller
-from Controller.base.utils import read_json, send_data
+from .utils import read_json, send_data
 
 dirName = '/home/qianguo/controller/'
 class Manager(object):
     """
     负责和用户的通用交互
     """
-    def __init__(self, controller: Controller):
+    def __init__(self, controller):
         self.controller = controller
         self.__load_default_route()
 
 
     def __load_default_route(self):
-        @self.testbed.flask.route('/taskRequestFile', methods=['POST'])
+        @self.controller.flask.route('/taskRequestFile', methods=['POST'])
         def route_receive_request():
             """
             接收用户发送的任务文件，接收压缩包（包括links.json文件，dml_app,dml_tool,manager.py文件）
@@ -114,7 +113,7 @@ class Manager(object):
             
             return
     
-        @self.testbed.flask.route('/startupTask', methods=['GET'])
+        @self.controller.flask.route('/startupTask', methods=['GET'])
         def route_startup_task():
             """
             用户信息已发送完毕，开始执行用户的任务
@@ -138,7 +137,7 @@ class Manager(object):
         #     return allocation
 
         # TODO：暂时用不上
-        @self.testbed.flask.route('/getTaskStatus', methods=['GET'])
+        @self.controller.flask.route('/getTaskStatus', methods=['GET'])
         def route_get_task_status():
             """
             获取任务状态
@@ -152,17 +151,17 @@ class Manager(object):
                 return 'Task pending'
             return 'Task not found'
         
-        @self.testbed.flask.route('/print', methods=['POST'])
+        @self.controller.flask.route('/print', methods=['POST'])
         def route_print():
             """
             listen message from worker/worker_utils.py, send_print ().
             it will print the ${msg}.
             """
             print(request.form['msg'])
-            # self.testbed.executor.submit(self.__send_logs_to_backend, request.form['msg'])
+            # self.controller.executor.submit(self.__send_logs_to_backend, request.form['msg'])
             return ''
         
-        @self.testbed.flask.route('/update/tc', methods=['GET'])
+        @self.controller.flask.route('/update/tc', methods=['GET'])
         def route_update_tc():
             """
             you can send a GET request to this /update/tc to update the
@@ -244,7 +243,7 @@ class Manager(object):
             print('update tc time all cost', time_end - time_start, 's')
             return ''
         
-        @self.testbed.flask.route('/emulated/stop', methods=['GET'])
+        @self.controller.flask.route('/emulated/stop', methods=['GET'])
         def route_emulated_stop():
             """
             send a stop message to emulators.
@@ -255,7 +254,7 @@ class Manager(object):
             self.__stop_all_emulated(taskID)
             return ''
         
-        @self.testbed.flask.route('/emulated/clear', methods=['GET'])
+        @self.controller.flask.route('/emulated/clear', methods=['GET'])
         def route_emulated_clear():
             """
             send a clear message to emulators.
@@ -266,7 +265,7 @@ class Manager(object):
             self.__clear_all_emulated(taskID)
             return ''
         
-        @self.testbed.flask.route('/emulated/reset', methods=['GET'])
+        @self.controller.flask.route('/emulated/reset', methods=['GET'])
         def route_emulated_reset():
             """
             send a reset message to emulators.
