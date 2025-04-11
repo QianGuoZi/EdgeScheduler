@@ -7,7 +7,7 @@ import time
 from typing import Dict, List, Type
 import inspect
 import importlib.util
-from .taskManger import taskManager
+from .taskManger import TaskManager
 
 from flask import Flask, json, request
 from .link import VirtualLink
@@ -235,7 +235,8 @@ class Controller(object):
         emulator.add_node(en)
         en.add_var({
             'NET_CTL_ADDRESS': self.address,
-            'NET_AGENT_ADDRESS': emulator.ipW + ':' + str(self.agentPort)
+            'NET_AGENT_ADDRESS': emulator.ipW + ':' + str(self.agentPort),
+            'NET_TASK_ID': str(en.tid)
         })
         self.preMap[en.id] = emulator.idW
 
@@ -470,7 +471,7 @@ class Controller(object):
             print(f"部署任务 {taskID} 失败: {str(e)}")
             return False
 
-def load_task_manager_class(file_path: str) -> Type[taskManager]:
+def load_task_manager_class(file_path: str) -> Type[TaskManager]:
     """动态加载用户的TaskManager子类"""
     try:
         # 获取模块名称
@@ -484,8 +485,8 @@ def load_task_manager_class(file_path: str) -> Type[taskManager]:
         # 查找继承自taskManager的类
         for name, obj in inspect.getmembers(module):
             if (inspect.isclass(obj) and 
-                issubclass(obj, taskManager) and 
-                obj != taskManager):
+                issubclass(obj, TaskManager) and 
+                obj != TaskManager):
                 return obj
                 
         raise ValueError("未找到taskManager的子类")

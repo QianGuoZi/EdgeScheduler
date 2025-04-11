@@ -8,14 +8,14 @@ from .node import EmulatedNode, Emulator, PhysicalNode
 
 from flask import Flask, request
 
-from .taskManger import taskManager
+from .taskManger import TaskManager
 
 dirName = '/home/qianguo/controller/'
 class Task(object):
     """
     管理某个任务的生命过程
     """
-    def __init__(self, ID: int, dir_name: str, manager_class: Type[taskManager]):
+    def __init__(self, ID: int, dir_name: str, manager_class: Type[TaskManager]):
         self.flask = Flask(__name__)
         self.ID: int = ID
         self.dirName: str = dir_name

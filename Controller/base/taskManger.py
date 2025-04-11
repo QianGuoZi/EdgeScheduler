@@ -14,7 +14,7 @@ class NodeInfo(object):
         self.ip: str = ip
         self.port: int = port
 
-class taskManager(metaclass=abc.ABCMeta):
+class TaskManager(metaclass=abc.ABCMeta):
     """
     负责任务的部署、资源调整、任务状态监控等
     """
@@ -62,7 +62,6 @@ class taskManager(metaclass=abc.ABCMeta):
                     send_data('GET', '/log', en.ip, en.port)
             return ''
         
-        #TODO: 修改log方法
         @self.testbed.flask.route('/log', methods=['POST'])
         def route_log():
             """
