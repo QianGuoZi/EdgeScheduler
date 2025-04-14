@@ -1,0 +1,13 @@
+version: "2.1"
+volumes:
+  dml_app:
+    driver_opts:
+      type: "nfs"
+      o: "addr=222.201.187.50,ro"
+      device: ":/home/qianguo/Edge-Scheduler/Controller/dml_app"
+  dataset:
+    driver_opts:
+      type: "nfs"
+      o: "addr=222.201.187.50,ro"
+      device: ":/home/qianguo/Edge-Scheduler/Controller/dataset"
+services:

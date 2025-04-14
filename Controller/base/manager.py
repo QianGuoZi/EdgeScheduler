@@ -10,7 +10,7 @@ from flask import json, request
 
 from .utils import read_json, send_data
 
-dirName = '/home/qianguo/controller/'
+dirName = '/home/qianguo/Edge-Scheduler/Controller'
 class Manager(object):
     """
     负责和用户的通用交互
@@ -23,95 +23,120 @@ class Manager(object):
     def __load_default_route(self):
         @self.controller.flask.route('/taskRequestFile', methods=['POST'])
         def route_receive_request():
-            """
-            接收用户发送的任务文件，接收压缩包（包括links.json文件，dml_app,dml_tool,manager.py文件）
-            task_file
-                ├─ links.json
-                ├─ manager.py
-                ├─ dataset*
-                    ├─ test_data
-                    ├─ train_data
-                ├─ dml_tool
-                    ├─ dataset.json
-                    ├─ structure.json
-                    ├─ structure_conf.py
-                    ├─ dataset_conf.py
-                ├─ dml_app
-                    ├─ nns
-                    ├─ dml_req.txt
-                    ├─ peer.py
-                    ├─ Dockerfile
-            """
-            def analyse_file(taskId: int):
+            try:
                 """
-                处理用户的文件，将压缩包解压并放到不同的文件夹中
-                dml_app和dml_file需要和worker挂载，要不直接挂载一个大的文件夹，然后往里面更新算了（
-                那挂载可以不动了，直接在下面为task创建对应的文件夹，文件路径改改
-                worker_utils可以获得taskId，喜
+                接收用户发送的任务文件，接收压缩包（包括links.json文件，dml_app,dml_tool,manager.py文件）
+                task_file
+                    ├─ links.json
+                    ├─ manager.py
+                    ├─ dataset*
+                        ├─ test_data
+                        ├─ train_data
+                    ├─ dml_tool
+                        ├─ dataset.json
+                        ├─ structure.json
+                        ├─ structure_conf.py
+                        ├─ dataset_conf.py
+                    ├─ dml_app
+                        ├─ nns
+                        ├─ dml_req.txt
+                        ├─ peer.py
+                        ├─ Dockerfile
                 """
-                zip_filename = f"{taskId}_taskFile.zip"
-                zip_path = os.path.join(dirName, "task_file", zip_filename)
-                
-                current_directory = os.path.join(dirName, "task_file", str(taskId))
-                os.makedirs(current_directory, exist_ok=True)
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(current_directory)
-                            
-                # os.remove(zip_path)
+                def analyse_file(taskId: int):
+                    """
+                    处理用户的文件，将压缩包解压并放到不同的文件夹中
+                    dml_app和dml_file需要和worker挂载，要不直接挂载一个大的文件夹，然后往里面更新算了（
+                    那挂载可以不动了，直接在下面为task创建对应的文件夹，文件路径改改
+                    worker_utils可以获得taskId，喜
+                    """
+                    zip_filename = f"{taskId}_taskFile.zip"
+                    zip_path = os.path.join(dirName, "task_file", zip_filename)
+                    
+                    current_directory = os.path.join(dirName, "task_file", str(taskId))
+                    os.makedirs(current_directory, exist_ok=True)
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        info_list = zip_ref.infolist()
+                        for info in info_list:
+                            # 跳过空文件名或目录项
+                            if not info.filename or info.filename.endswith('/'):
+                                continue
+                                
+                            # 去掉可能存在的根目录名
+                            if '/' in info.filename:
+                                # 提取子路径
+                                sub_path = info.filename.split('/', 1)[1]
+                                if sub_path:  # 确保子路径不为空
+                                    info.filename = sub_path
+                                    try:
+                                        zip_ref.extract(info, current_directory)
+                                    except Exception as e:
+                                        print(f"解压文件 {info.filename} 时出错: {str(e)}")
+                            else:
+                                # 直接解压没有路径的文件
+                                try:
+                                    zip_ref.extract(info, current_directory)
+                                except Exception as e:
+                                    print(f"解压文件 {info.filename} 时出错: {str(e)}")
+                                
+                    # os.remove(zip_path)
 
-                # 复制 links.json到task_links/{taskId}/links.json
-                links_json_path = os.path.join(current_directory, 'links.json')
-                target_links_json_path = os.path.join(dirName, "task_links", str(taskId))
-                if not os.path.exists(target_links_json_path) :
-                    os.makedirs(target_links_json_path)
-                shutil.copy2(links_json_path, target_links_json_path)
+                    # 复制 links.json到task_links/{taskId}/links.json
+                    links_json_path = os.path.join(current_directory, 'links.json')
+                    target_links_json_path = os.path.join(dirName, "task_links", str(taskId))
+                    if not os.path.exists(target_links_json_path) :
+                        os.makedirs(target_links_json_path)
+                    shutil.copy2(links_json_path, target_links_json_path)
 
-                # 复制 manager.py到task_manager/{taskId}/user_manager.py
-                manager_path = os.path.join(current_directory, 'task_manager.py')
-                target_manager_path = os.path.join(dirName, "task_manager", str(taskId))
-                if not os.path.exists(target_manager_path) :
-                    os.makedirs(target_manager_path)
-                shutil.copy2(manager_path, target_manager_path)
-                
-                # 创建 dml_tool 子目录
-                target_dml_file_dir = os.path.join(dirName, "dml_tool", str(taskId))
-                os.makedirs(target_dml_file_dir, exist_ok=True)
-                
-                # 复制 dml_file 文件夹到指定目录 /controller/dml_file/{taskId}/
-                source_dml_file_dir = os.path.join(current_directory, 'dml_tool')
-                if os.path.exists(source_dml_file_dir):
-                    shutil.copytree(source_dml_file_dir, target_dml_file_dir, dirs_exist_ok=True)
+                    # 复制 manager.py到task_manager/{taskId}/user_manager.py
+                    manager_path = os.path.join(current_directory, 'task_manager.py')
+                    target_manager_path = os.path.join(dirName, "task_manager", str(taskId))
+                    if not os.path.exists(target_manager_path) :
+                        os.makedirs(target_manager_path)
+                    shutil.copy2(manager_path, target_manager_path)
+                    
+                    # 创建 dml_tool 子目录
+                    target_dml_file_dir = os.path.join(dirName, "dml_tool", str(taskId))
+                    os.makedirs(target_dml_file_dir, exist_ok=True)
+                    
+                    # 复制 dml_file 文件夹到指定目录 /controller/dml_file/{taskId}/
+                    source_dml_file_dir = os.path.join(current_directory, 'dml_tool')
+                    if os.path.exists(source_dml_file_dir):
+                        shutil.copytree(source_dml_file_dir, target_dml_file_dir, dirs_exist_ok=True)
 
-                # 创建 dml_app 子目录
-                target_dml_app_dir = os.path.join(dirName, "dml_app", str(taskId))
-                os.makedirs(target_dml_app_dir, exist_ok=True)
+                    # 创建 dml_app 子目录
+                    target_dml_app_dir = os.path.join(dirName, "dml_app", str(taskId))
+                    os.makedirs(target_dml_app_dir, exist_ok=True)
+                    
+                    # 移动 dml_app 文件夹到指定目录 /controller/dml_app/{taskId}/
+                    source_dml_app_dir = os.path.join(current_directory, 'dml_app')
+                    if os.path.exists(source_dml_app_dir):
+                        shutil.copytree(source_dml_app_dir, target_dml_app_dir, dirs_exist_ok=True)
+                    return
+                if 'file' not in request.files:
+                        return 'No file part', 400
+                    
+                file = request.files['file']
+                    
+                # 如果用户没有选择文件，浏览器可能会发送一个没有文件名的空文件
+                if file.filename == '' or not file.filename:
+                    return 'No selected file', 400
+                    
+                if file:
+                    taskId = self.controller.next_task_id()
+                    filename = f"{taskId}_taskFile.zip"
+                    save_path = os.path.join(dirName,'task_file', filename)
+                    print(save_path)
+                    file.save(save_path)
+                    analyse_file(taskId)
+
+                    # 返回成功响应
+                    return 'File successfully uploaded.', 200
                 
-                # 移动 dml_app 文件夹到指定目录 /controller/dml_app/{taskId}/
-                source_dml_app_dir = os.path.join(current_directory, 'dml_app')
-                if os.path.exists(source_dml_app_dir):
-                    shutil.copytree(source_dml_app_dir, target_dml_app_dir, dirs_exist_ok=True)
                 return
-            if 'file' not in request.files:
-                    return 'No file part', 400
-                
-            file = request.files['file']
-                
-            # 如果用户没有选择文件，浏览器可能会发送一个没有文件名的空文件
-            if file.filename == '':
-                return 'No selected file', 400
-                
-            if file:
-                taskId = self.controller.next_task_id()
-                filename = f"{taskId}_taskFile.zip"
-                save_path = os.path.join(dirName,'task_file', filename)
-                print(save_path)
-                file.save(save_path)
-                analyse_file(taskId)
-
-                # 返回成功响应
-                return 'File successfully uploaded.', 200
-            
-            return
+            except Exception as e:
+                print(f"Error: {str(e)}")  # 打印错误信息
+                return str(e), 500  # 返回具体错误信息
     
         @self.controller.flask.route('/startupTask', methods=['GET'])
         def route_startup_task():
@@ -124,6 +149,7 @@ class Manager(object):
             """
             taskID = int(request.args.get('taskId'))
             # 将任务添加到待调度队列
+            print(f"Task {taskID} is submitted for scheduling.")
             self.controller.add_pending_task(taskID)
             return 'Task submitted for scheduling'
         

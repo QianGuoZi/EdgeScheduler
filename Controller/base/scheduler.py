@@ -1,4 +1,5 @@
 import os
+from typing import Dict
 from flask import json
 
 
@@ -7,7 +8,7 @@ class Scheduler(object):
     def __init__(self, controller):
         self.controller = controller
 
-    def resource_schedule(self, taskId : int):
+    def resource_schedule(self, taskId : int) -> Dict:
         """
         需要访问Testbed获取目前的资源，还有现有的需求，然后根据调度算法提供
         """

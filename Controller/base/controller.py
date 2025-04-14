@@ -1,4 +1,5 @@
-from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor
+import abc
+from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 from logging import Manager
 import os
 from queue import Queue
@@ -7,6 +8,7 @@ import time
 from typing import Dict, List, Type
 import inspect
 import importlib.util
+import subprocess as sp
 from .taskManger import TaskManager
 
 from flask import Flask, json, request
@@ -18,7 +20,7 @@ from .task import Task
 from .utils import read_json, send_data
 
 
-dirName = '/home/qianguo/controller/'
+dirName = '/home/qianguo/Edge-Scheduler/Controller'
 class Controller(object):
     """
     任务接收器，负责和用户进行交互
@@ -64,7 +66,7 @@ class Controller(object):
         self.executor = ThreadPoolExecutor()
         
         # scheduler
-        self.scheduler = scheduler
+        self.scheduler = scheduler(self)
 
         # 添加三个队列
         self.pending_tasks = Queue()  # 待调度任务队列
@@ -79,6 +81,8 @@ class Controller(object):
         self.deploy_thread.daemon = True
         self.schedule_thread.start()
         self.deploy_thread.start()
+
+        self.__init_routes()
 
     def __next_w_id(self):
         self.currWID += 1
@@ -122,6 +126,7 @@ class Controller(object):
                     task_id = self.pending_tasks.get()
                     try:
                         # 调用scheduler进行调度
+                        print(f"调度任务: {task_id}")
                         allocation = self.scheduler.resource_schedule(task_id)
                         # 将任务和其分配结果放入已调度队列
                         self.scheduled_tasks.put((task_id, allocation))
@@ -154,6 +159,7 @@ class Controller(object):
 
     def add_pending_task(self, task_id: int):
         """添加待调度任务"""
+        print(f"添加待调度任务: {task_id}")
         self.pending_tasks.put(task_id)
 
     def get_scheduled_task(self) -> tuple:
@@ -244,7 +250,6 @@ class Controller(object):
         for name in links_json:
             nodeName = str(taskId) + '_' + name
             src = self.name_to_node(nodeName)
-            print(f"{nodeName}, {src}")
             for dest_json in links_json[name]:
                 destName = str(taskId) + '_' + dest_json['dest']
                 dest = self.name_to_node(destName)
@@ -302,36 +307,32 @@ class Controller(object):
         with open(file_name, 'w') as f:
             f.writelines(json.dumps(data, indent=2))
 
-    def send_tc(self):
-        self.__set_emulated_tc_listener()
+    def send_tc(self, taskID: int):
+        # self.__set_emulated_tc_listener()
         if self.virtualLinkNumber > 0:
             # send the tc settings to emulators.
-            self.__send_emulated_tc()
+            self.__send_emulated_tc(taskID)
             # send the tc settings to physical nodes.
             self.__send_physical_tc()
         else:
             print('tc finish')
 
-    def __set_emulated_tc_listener(self):
-        """
-        listen message from worker/agent.py, deploy_emulated_tc ().
-        it will save the result of deploying emulated tc settings.
-        """
-
-        @self.flask.route('/emulated/tc', methods=['POST'])
-        def route_emulated_tc():
-            data: Dict = json.loads(request.form['data'])
-            for name, ret in data.items():
-                if 'msg' in ret:
-                    print('emulated node ' + name + ' tc failed, err:')
-                    print(ret['msg'])
-                elif 'number' in ret:
-                    print('emulated node ' + name + ' tc succeed')
-                    with self.lock:
-                        self.deployedCount += int(ret['number'])
-                        if self.deployedCount == self.virtualLinkNumber:
-                            print('tc finish')
-            return ''
+    def __init_routes(self):
+            """初始化所有路由"""
+            @self.flask.route('/emulated/tc', methods=['POST'])
+            def route_emulated_tc():
+                data: Dict = json.loads(request.form['data'])
+                for name, ret in data.items():
+                    if 'msg' in ret:
+                        print('emulated node ' + name + ' tc failed, err:')
+                        print(ret['msg'])
+                    elif 'number' in ret:
+                        print('emulated node ' + name + ' tc succeed')
+                        with self.lock:
+                            self.deployedCount += int(ret['number'])
+                            if self.deployedCount == self.virtualLinkNumber:
+                                print('tc finish')
+                return ''
 
     def __send_emulated_tc(self, taskID: int):
         """
@@ -390,7 +391,7 @@ class Controller(object):
         for s in self.task[taskID].emulator.values():
             if s.eNode:
                 tasks.append(self.executor.submit(self.__launch_emulated, s, self.dirName))
-        os.wait(tasks, return_when=ALL_COMPLETED)
+        wait(tasks, return_when=ALL_COMPLETED)
 
     def __launch_emulated(self, emulator: Emulator, taskID: int,path: str):
         with open(os.path.join(path, emulator.nameW + '_' + str(taskID) + '.yml'), 'r') as f:
@@ -407,7 +408,7 @@ class Controller(object):
         """
         tasks = [self.executor.submit(self.__build_emulated_env_helper, e, tag, path1, path2)
                  for e in self.emulator.values()]
-        os.wait(tasks, return_when=ALL_COMPLETED)
+        wait(tasks, return_when=ALL_COMPLETED)
 
     def __build_emulated_env_helper(self, emulator: Emulator, tag: str, path1: str, path2: str):
         with open(path1, 'r') as f1, open(path2, 'r') as f2:
@@ -416,6 +417,25 @@ class Controller(object):
                             data={'tag': tag}, files={'Dockerfile': f1, 'dml_req': f2})
             if res == '1':
                 print(emulator.nameW + ' build succeed')
+
+    def __export_nfs(self):
+        """
+        clear all exported path and then export the defined path through nfs.
+        """
+        cmd = 'sudo exportfs -au'
+        sp.Popen(cmd, shell=True, stdout=sp.DEVNULL, stderr=sp.STDOUT).wait()
+        for nfs in self.nfs.values():
+            subnet = nfs.subnet
+            path = nfs.path
+            # export the path.
+            cmd = 'sudo exportfs ' + subnet + ':' + path
+            sp.Popen(cmd, shell=True, stdout=sp.DEVNULL, stderr=sp.STDOUT).wait()
+            # check result.
+            cmd = 'sudo exportfs -v'
+            p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT)
+            msg = p.communicate()[0].decode()
+            assert path in msg and subnet in msg, Exception(
+                'share ' + path + ' to ' + subnet + ' failed')
 
     # 好像大概初步改完了
     def deploy_task(self, taskID: int, allocation: Dict, build_emulated_env: bool = False):
@@ -432,8 +452,7 @@ class Controller(object):
             manager_class = load_task_manager_class(manager_file_path)
             
             # 添加节点
-            # TODO 要动态获取类，创造实例
-            task = Task(taskID, self.dirName, taskManager=manager_class)
+            task = Task(taskID, self.dirName, manager_class=manager_class)
             self.task[taskID] = task
             added_emulators = set()
 
@@ -464,7 +483,7 @@ class Controller(object):
             self.save_node_info(taskID) # 保存节点信息到testbed
             # 修改
             self.send_tc(taskID) # 将tc信息发送给worker，没有的添加，有的更新
-            self.launch_all_emulated(taskID, dirName)
+            self.launch_all_emulated(taskID)
             return True
         
         except Exception as e:
@@ -474,22 +493,51 @@ class Controller(object):
 def load_task_manager_class(file_path: str) -> Type[TaskManager]:
     """动态加载用户的TaskManager子类"""
     try:
-        # 获取模块名称
-        module_name = file_path.split('/')[-1].replace('.py', '')
+        print(f"开始加载文件: {file_path}")
+        
+        # 确保项目根目录在 Python 路径中
+        import sys
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
         
         # 动态加载模块
+        module_name = os.path.basename(file_path).replace('.py', '')
         spec = importlib.util.spec_from_file_location(module_name, file_path)
         module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
         spec.loader.exec_module(module)
         
-        # 查找继承自taskManager的类
+        print(f"模块加载成功: {module_name}")
+        
+        # 直接尝试获取 GlManager 类
+        if hasattr(module, 'GlManager'):
+            manager_class = getattr(module, 'GlManager')
+            try:
+                # 修改判断逻辑
+                if any(base.__name__ == 'TaskManager' for base in manager_class.__bases__):
+                    print(f"找到TaskManager子类: GlManager")
+                    return manager_class
+            except Exception as e:
+                print(f"检查GlManager继承关系时出错: {str(e)}")
+        
+        # 如果找不到 GlManager，遍历所有成员
         for name, obj in inspect.getmembers(module):
-            if (inspect.isclass(obj) and 
-                issubclass(obj, TaskManager) and 
-                obj != TaskManager):
-                return obj
-                
-        raise ValueError("未找到taskManager的子类")
+            if inspect.isclass(obj):
+                try:
+                    # 修改判断逻辑
+                    if any(base.__name__ == 'TaskManager' for base in obj.__bases__):
+                        print(f"找到TaskManager子类: {name}")
+                        return obj
+                except Exception as e:
+                    print(f"检查类 {name} 继承关系时出错: {str(e)}")
+                    
+        raise ValueError(f"在{module_name}中未找到TaskManager的子类")
+        
     except Exception as e:
         print(f"加载用户管理器类失败: {str(e)}")
+        print(f"文件路径: {file_path}")
+        print(f"sys.path: {sys.path}")
+        import traceback
+        print(f"详细错误信息: {traceback.format_exc()}")
         raise
