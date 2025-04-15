@@ -10,7 +10,7 @@ from flask import Flask, request
 
 from .taskManger import TaskManager
 
-dirName = '/home/qianguo/controller/'
+dirName = '/home/qianguo/Edge-Scheduler/Controller'
 class Task(object):
     """
     管理某个任务的生命过程

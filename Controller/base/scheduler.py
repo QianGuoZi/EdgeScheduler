@@ -3,7 +3,7 @@ from typing import Dict
 from flask import json
 
 
-dirName = '/home/qianguo/controller/'
+dirName = '/home/qianguo/Edge-Scheduler/Controller'
 class Scheduler(object):
     def __init__(self, controller):
         self.controller = controller

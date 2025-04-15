@@ -142,7 +142,7 @@ class Emulator(Worker):
         self.curr_cpu = 0
         str_yml += 'services:\n'
         for en in self.eNode.values():
-            if en.tid != taskID:
+            if en.tid == taskID:
                 str_yml = str_yml \
                         + '  ' + en.name + ':\n' \
                         + '    container_name: ' + en.name + '\n' \
