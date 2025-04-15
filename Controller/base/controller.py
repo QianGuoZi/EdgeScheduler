@@ -390,14 +390,48 @@ class Controller(object):
         tasks = []
         for s in self.task[taskID].emulator.values():
             if s.eNode:
-                tasks.append(self.executor.submit(self.__launch_emulated, s, self.dirName))
+                print('launch_all_emulated: send to ' + s.nameW)
+                tasks.append(self.executor.submit(self.__launch_emulated, s, taskID, self.dirName))
         wait(tasks, return_when=ALL_COMPLETED)
 
-    def __launch_emulated(self, emulator: Emulator, taskID: int,path: str):
-        with open(os.path.join(path, emulator.nameW + '_' + str(taskID) + '.yml'), 'r') as f:
-            send_data('POST', '/emulated/launch', emulator.ipW, self.agentPort, files={'yml': f})
+    # def __launch_emulated(self, emulator: Emulator, taskID: int, path: str):
+    #     path = os.path.join(path, emulator.nameW + '_' + str(taskID) + '.yml')
+    #     print(f'launch_all_emulated: send to {emulator.nameW}, path: {path}, ip:{emulator.ipW}, port:{self.agentPort}')
+    #     with open(os.path.join(path, emulator.nameW + '_' + str(taskID) + '.yml'), 'r') as f:
+    #         send_data('POST', '/emulated/launch', emulator.ipW, self.agentPort, files={'yml': f})
+    def __launch_emulated(self, emulator: Emulator, taskID: int, path: str):
+        """启动单个模拟器的节点"""
+        try:
+            # 构造yml文件路径
+            yml_filename = f"{emulator.nameW}_{taskID}.yml"
+            yml_path = os.path.join(path, yml_filename)
+            
+            print(f'launch_all_emulated: 准备发送到 {emulator.nameW}')
+            print(f'文件路径: {yml_path}')
+            
+            # 检查文件是否存在
+            if not os.path.exists(yml_path):
+                raise FileNotFoundError(f"找不到YML文件: {yml_path}")
+                
+            # 打开并发送文件
+            with open(yml_path, 'r') as f:
+                print(f'正在发送请求到 {emulator.ipW}:{self.agentPort}')
+                response = send_data('POST',
+                    '/emulated/launch',
+                    emulator.ipW,
+                    self.agentPort,data={'taskID': taskID},
+                    files={'yml': f}
+                )
+                print(f'请求响应: {response}')
+                
+        except FileNotFoundError as e:
+            print(f"文件错误: {str(e)}")
+            raise
+        except Exception as e:
+            print(f"发送请求失败: {str(e)}")
+            raise
 
-    def __build_emulated_env(self, tag: str, path1: str, path2: str):
+    def __build_emulated_env(self, taskID: int, tag: str, path1: str, path2: str):
         """
         send the Dockerfile and pip requirements.txt to emulators to build the execution environment.
         this request can be received by worker/agent.py, route_emulated_build ().
@@ -406,19 +440,19 @@ class Controller(object):
         @param path2: path of pip requirements.txt.
         @return:
         """
-        tasks = [self.executor.submit(self.__build_emulated_env_helper, e, tag, path1, path2)
+        tasks = [self.executor.submit(self.__build_emulated_env_helper, e, tag, path1, path2, taskID)
                  for e in self.emulator.values()]
         wait(tasks, return_when=ALL_COMPLETED)
 
-    def __build_emulated_env_helper(self, emulator: Emulator, tag: str, path1: str, path2: str):
+    def __build_emulated_env_helper(self, emulator: Emulator, tag: str, path1: str, path2: str, taskID: int):
         with open(path1, 'r') as f1, open(path2, 'r') as f2:
             print('build_emulated_env: send to ' + emulator.nameW)
             res = send_data('POST', '/emulated/build', emulator.ipW, self.agentPort,
-                            data={'tag': tag}, files={'Dockerfile': f1, 'dml_req': f2})
+                            data={'tag': tag, 'taskID': taskID}, files={'Dockerfile': f1, 'dml_req': f2})
             if res == '1':
                 print(emulator.nameW + ' build succeed')
 
-    def __export_nfs(self):
+    def export_nfs(self):
         """
         clear all exported path and then export the defined path through nfs.
         """
@@ -462,18 +496,18 @@ class Controller(object):
                 if emu.nameW not in added_emulators:
                     task.add_emulator(emu)
                     added_emulators.add(emu.nameW)
-
-                en = self.add_emulated_node (node_name, taskID, '/home/qianguo/worker/dml_app/'+str(taskID),
-                    ['python3', 'gl_peer.py'], 'task'+str(taskID)+':v1.0', cpu=node_info['cpu'], ram=node_info['ram'], unit='G', emulator=emu)
+                print(f"添加节点 {node_name} 到任务 {taskID} 的模拟器 {emu.nameW}")
+                en = self.add_emulated_node (node_name, taskID, '/home/qianguo/EdgeScheduler/Worker/dml_app/'+str(taskID),
+                    ['python3', 'gl_peer.py'], 'task'+ '1' +':v1.0', cpu=node_info['cpu'], ram=node_info['ram'], unit='G', emulator=emu)
                 task.add_emulator_node(en)
-                en.mount_local_path ('./dml_file', '/home/qianguo/worker/dml_file')
-                en.mount_nfs (nfsApp, '/home/qianguo/worker/dml_app')
-                en.mount_nfs (nfsDataset, '/home/qianguo/worker/dataset')
+                en.mount_local_path ('./dml_file', '/home/qianguo/EdgeScheduler/Worker/dml_file')
+                en.mount_nfs (nfsApp, '/home/qianguo/EdgeScheduler/Worker/dml_app')
+                en.mount_nfs (nfsDataset, '/home/qianguo/EdgeScheduler/Worker/dataset')
                     
             if build_emulated_env:
                 path_dockerfile = os.path.join(self.dirName, 'dml_app/'+ str(taskID) +'/Dockerfile')
                 path_req = os.path.join(self.dirName, 'dml_app/'+ str(taskID) +'/dml_req.txt')
-                self.__build_emulated_env('task'+str(taskID)+':v1.0', path_dockerfile, path_req)
+                self.__build_emulated_env(taskID,'task'+str(taskID)+':v1.0', path_dockerfile, path_req)
             # 解析links
             links_json = read_json (os.path.join (dirName, "task_links", str(taskID),'links.json'))
             self.load_link (taskID, links_json)
