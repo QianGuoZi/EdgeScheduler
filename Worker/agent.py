@@ -202,35 +202,85 @@ def route_emulated_tc_update ():
 	os.wait (tasks, return_when=ALL_COMPLETED)
 	return json.dumps (ret)
 
-@app.route ('/emulated/build', methods=['POST'])
-def route_emulated_build ():
-	# 从controller层获取模拟器docker相关的信息ym文件，创建image
-	"""
-	listen file from controller/base/node.py, build_emulated_env ().
-	it will use these files to build a docker image.
-	"""
-	taskID = request.args.get ('taskID')
-	task_dir = os.path.join(dirname, taskID)
-    # 确保目标目录存在
-	os.makedirs(task_dir, exist_ok=True)
-    # 保存文件
-	path = os.path.join(task_dir, 'Dockerfile')
-	request.files.get('Dockerfile').save(path)
-	request.files.get('dml_req').save(os.path.join(task_dir, 'dml_req.txt'))
+@app.route('/emulated/build', methods=['POST'])
+def route_emulated_build():
+    """从controller层获取模拟器docker相关的信息，创建image"""
+    taskID = request.form.get('taskID')
+    if not taskID:
+        print('Error: No taskID provided')
+        return '-1'
+
+    try:
+        task_dir = os.path.join(dirname, str(taskID))
+        # 确保目标目录存在
+        os.makedirs(task_dir, exist_ok=True)
+        
+        # 保存文件
+        path = os.path.join(task_dir, 'Dockerfile')
+        dockerfile = request.files.get('Dockerfile')
+        dml_req = request.files.get('dml_req')
+        
+        if not dockerfile or not dml_req:
+            print('Error: Missing required files')
+            return '-1'
+            
+        dockerfile.save(path)
+        dml_req_path = os.path.join(task_dir, 'dml_req.txt')
+        dml_req.save(dml_req_path)
+        
+        # 构建镜像
+        tag = request.form.get('tag')
+        if not tag:
+            print('Error: No tag provided')
+            return '-1'
+            
+        # 修改构建命令,指定正确的构建上下文路径
+        cmd = f'cd {task_dir} && sudo docker build -t {tag} .'
+        print(f'执行命令: {cmd}')
+        
+        p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT)
+        msg = p.communicate()[0].decode()
+        print(msg)
+        
+        if 'Successfully tagged' in msg:
+            print('构建镜像成功')
+            return '1'
+        else:
+            print('构建镜像失败') 
+            return '-1'
+            
+    except Exception as e:
+        print(f'构建过程出错: {str(e)}')
+        return '-1'
+
+# @app.route ('/emulated/build', methods=['POST'])
+# def route_emulated_build ():
+# 	# 从controller层获取模拟器docker相关的信息ym文件，创建image
+# 	"""
+# 	listen file from controller/base/node.py, build_emulated_env ().
+# 	it will use these files to build a docker image.
+# 	"""
+# 	taskID = request.form.get('taskID')
+# 	task_dir = os.path.join(dirname, taskID)
+#     # 确保目标目录存在
+# 	os.makedirs(task_dir, exist_ok=True)
+#     # 保存文件
+# 	path = os.path.join(task_dir, 'Dockerfile')
+# 	request.files.get('Dockerfile').save(path)
+# 	request.files.get('dml_req').save(os.path.join(task_dir, 'dml_req.txt'))
 	
-	tag = request.form ['tag']
-	cmd = 'sudo docker build -t ' + tag + ' -f ' + path + ' .'
-	print (cmd)
-	p = sp.Popen (cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT)
-	msg = p.communicate () [0].decode ()
-	print (msg)
-	if 'Successfully tagged' in msg:
-		print ('build image succeed')
-		return '1'
-	else:
-		print ('build image failed')
-		print ('build image failed')
-		return '-1'
+# 	tag = request.form ['tag']
+# 	cmd = 'sudo docker build -t ' + tag + ' -f ' + path + ' .'
+# 	print (cmd)
+# 	p = sp.Popen (cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT)
+# 	msg = p.communicate () [0].decode ()
+# 	print (msg)
+# 	if 'Successfully tagged' in msg:
+# 		print ('build image succeed')
+# 		return '1'
+# 	else:
+# 		print ('build image failed')
+# 		return '-1'
 	
 @app.route ('/emulated/launch', methods=['POST'])
 def route_emulated_launch ():
@@ -240,10 +290,10 @@ def route_emulated_launch ():
 	it will launch the yml file.
 	"""
 	heartbeat.clear ()
-	taskID = request.args.get ('taskID')
+	taskID = request.form.get('taskID')
 	task_dir = os.path.join(dirname, taskID)
 	os.makedirs(task_dir, exist_ok=True)
-	filename = os.path.join (task_dir, hostname + '.yml')
+	filename = os.path.join (task_dir, hostname + '_' + str(taskID) + '.yml')
 	request.files.get ('yml').save (filename)
 	cmd = 'sudo COMPOSE_HTTP_TIMEOUT=120 docker-compose -f ' + filename + ' up'
 	print (cmd)
