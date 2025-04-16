@@ -26,6 +26,7 @@ class TaskManager(metaclass=abc.ABCMeta):
         self.logFile: List[str] = []
         self.logFileFolder: str = ''
         self.lock = threading.RLock()
+        self.__load_default_route()
     
     def load_node_info(self):
         for name, en in self.task.eNode.items():
@@ -34,8 +35,9 @@ class TaskManager(metaclass=abc.ABCMeta):
             self.pNode[name] = NodeInfo(name, pn.ip, pn.hostPort)
         self.nodeNumber = len(self.eNode) + len(self.pNode)
 
+    #这几个端口不知道挂哪去了，草拟的
     def __load_default_route(self):
-        @self.testbed.flask.route('/startTask', methods=['GET'])
+        @self.task.flask.route('/startTask', methods=['GET'])
         def route_start_task():
             """
             开始任务
@@ -44,11 +46,12 @@ class TaskManager(metaclass=abc.ABCMeta):
             if self.logFileFolder == '':
                 self.logFileFolder = os.path.join(self.task.dirName, 'dml_file/log', taskId,
                                                   time.strftime('-%Y-%m-%d-%H-%M-%S', time.localtime(time.time())))
+                os.makedirs(self.logFileFolder, exist_ok=True)
             msg = self.on_route_start(request)
             # return str explicitly is necessary.
             return str(msg)
 
-        @self.testbed.flask.route('/finishTask', methods=['GET'])
+        @self.task.flask.route('/finishTask', methods=['GET'])
         def route_finish_task():
             """
             when finished, ask node for log file.
@@ -62,7 +65,7 @@ class TaskManager(metaclass=abc.ABCMeta):
                     send_data('GET', '/log', en.ip, en.port)
             return ''
         
-        @self.testbed.flask.route('/log', methods=['POST'])
+        @self.task.flask.route('/log', methods=['POST'])
         def route_log():
             """
             this function can listen log files from worker/worker_utils.py, send_log ().

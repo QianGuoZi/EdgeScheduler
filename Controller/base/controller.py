@@ -1,6 +1,5 @@
 import abc
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
-from logging import Manager
 import os
 from queue import Queue
 import threading
@@ -15,6 +14,7 @@ from flask import Flask, json, request
 from .link import VirtualLink
 from .nfs import Nfs
 from .node import EmulatedNode, Emulator, Node, PhysicalNode
+from .manager import Manager
 from .scheduler import Scheduler
 from .task import Task
 from .utils import read_json, send_data
@@ -470,6 +470,11 @@ class Controller(object):
             msg = p.communicate()[0].decode()
             assert path in msg and subnet in msg, Exception(
                 'share ' + path + ' to ' + subnet + ' failed')
+    
+    def __creat_log(self, taskID: int):
+        res = send_data('POST', '/startTask', self.ip, self.port, data={'taskID': taskID})
+        if res == '1':
+            print('log build succeed')
 
     # 好像大概初步改完了
     def deploy_task(self, taskID: int, allocation: Dict, build_emulated_env: bool = False):
@@ -489,6 +494,9 @@ class Controller(object):
             task = Task(taskID, self.dirName, manager_class=manager_class)
             self.task[taskID] = task
             added_emulators = set()
+            tasks = [self.executor.submit(self.__creat_log, taskID)
+                 for e in self.emulator.values()]
+            wait(tasks, return_when=ALL_COMPLETED)        
 
             for node_name, node_info in allocation.items():
                 emu = self.emulator[node_info['emulator']]

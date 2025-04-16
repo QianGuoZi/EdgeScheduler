@@ -5,7 +5,8 @@ from base import default_testbed
 from base.manager import Manager
 
 # path of this file.
-dirName = os.path.abspath (os.path.dirname (__file__))
+# dirName = os.path.abspath (os.path.dirname (__file__))
+dirName = '/home/qianguo/Edge-Scheduler/Controller'
 
 # we made up the following physical hardware so this example is NOT runnable.
 if __name__ == '__main__':
