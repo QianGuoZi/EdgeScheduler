@@ -40,6 +40,7 @@ class Controller(object):
         self.nodePort: int = 4444  # DO NOT change this port number.
         # emulated node maps dml port to emulator's host port starting from $(base_host_port).
         self.hostPort: int = base_host_port
+        self.taskPort: int = 5000
         self.address: str = self.ip + ':' + str(self.port)
         self.dirName: str = dir_name
 
@@ -82,7 +83,7 @@ class Controller(object):
         self.schedule_thread.start()
         self.deploy_thread.start()
 
-        self.__init_routes()
+        self.__set_emulated_tc_listener()
 
     def __next_w_id(self):
         self.currWID += 1
@@ -317,7 +318,7 @@ class Controller(object):
         else:
             print('tc finish')
 
-    def __init_routes(self):
+    def __set_emulated_tc_listener(self):
             """初始化所有路由"""
             @self.flask.route('/emulated/tc', methods=['POST'])
             def route_emulated_tc():
@@ -471,12 +472,44 @@ class Controller(object):
             assert path in msg and subnet in msg, Exception(
                 'share ' + path + ' to ' + subnet + ' failed')
     
-    def __creat_log(self, taskID: int):
-        res = send_data('POST', '/startTask', self.ip, self.port, data={'taskID': taskID})
-        if res == '1':
-            print('log build succeed')
+    def __creat_log(self, taskID: int) -> bool:
+        """创建任务日志文件夹
+        
+        Args:
+            taskID: 任务ID
+            
+        Returns:
+            bool: 创建是否成功
+        """
+        try:
+            print(f'开始创建日志文件夹: {taskID}')
+            task = self.task.get(taskID)
+            if not task:
+                print(f'找不到任务 {taskID}')
+                return False
+            url = f'http://{self.ip}:{task.taskPort}/task/{taskID}/startTask'
+            print(f'发送请求到: {url}')
+            res = send_data(
+                'POST', 
+                f'/task/{taskID}/startTask',
+                self.ip,
+                self.taskPort + taskID,
+                data={'taskID': taskID}
+            )
+            
+            if res == '1':
+                print('日志创建成功')
+                return True
+            else:
+                print(f'日志创建失败: {res}')
+                return False
+                
+        except Exception as e:
+            print(f'创建日志时出错: {str(e)}')
+            return False
 
     # 好像大概初步改完了
+    #TODO：启动的过程要重新整理，tc传输完成之后再start
     def deploy_task(self, taskID: int, allocation: Dict, build_emulated_env: bool = False):
         """
         启动相应的容器
@@ -493,10 +526,7 @@ class Controller(object):
             # 添加节点
             task = Task(taskID, self.dirName, manager_class=manager_class)
             self.task[taskID] = task
-            added_emulators = set()
-            tasks = [self.executor.submit(self.__creat_log, taskID)
-                 for e in self.emulator.values()]
-            wait(tasks, return_when=ALL_COMPLETED)        
+            added_emulators = set()  
 
             for node_name, node_info in allocation.items():
                 emu = self.emulator[node_info['emulator']]
@@ -525,7 +555,11 @@ class Controller(object):
             self.save_node_info(taskID) # 保存节点信息到testbed
             # 修改
             self.send_tc(taskID) # 将tc信息发送给worker，没有的添加，有的更新
-            self.launch_all_emulated(taskID)
+            # self.launch_all_emulated(taskID)
+            # success = self.__creat_log(taskID)
+            # if not success:
+            #     raise Exception("创建日志失败")
+            # print("日志创建完成") 
             return True
         
         except Exception as e:

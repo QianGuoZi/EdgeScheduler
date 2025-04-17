@@ -48,7 +48,9 @@ def gen_conf (all_node, conf_json, link_json, output_path):
 
 
 if __name__ == '__main__':
+	#TODO: 修改路径问题
 	dirname = os.path.abspath (os.path.dirname (__file__))
+	controller_path = os.path.abspath(os.path.join(dirname, '../../'))
 	parser = argparse.ArgumentParser ()
 	parser.add_argument ('-s', '--structure', dest='structure', required=True, type=str,
 		help='./relative/path/to/structure/json/file')

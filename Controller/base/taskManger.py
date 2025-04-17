@@ -37,21 +37,27 @@ class TaskManager(metaclass=abc.ABCMeta):
 
     #这几个端口不知道挂哪去了，草拟的
     def __load_default_route(self):
-        @self.task.flask.route('/startTask', methods=['GET'])
+        @self.task.flask.route('/health')
+        def health_check():
+            return 'OK'
+        
+        prefix = self.task.url_prefix
+        @self.task.flask.route(f'{prefix}/startTask', methods=['POST'])
         def route_start_task():
             """
             开始任务
             """
-            taskId = request.args.get('taskId')
+            taskID = request.form.get('taskID')
+            print(f'start task {taskID}')
             if self.logFileFolder == '':
-                self.logFileFolder = os.path.join(self.task.dirName, 'dml_file/log', taskId,
+                self.logFileFolder = os.path.join(self.task.dirName, 'dml_file/log', str(taskID),
                                                   time.strftime('-%Y-%m-%d-%H-%M-%S', time.localtime(time.time())))
                 os.makedirs(self.logFileFolder, exist_ok=True)
             msg = self.on_route_start(request)
             # return str explicitly is necessary.
             return str(msg)
 
-        @self.task.flask.route('/finishTask', methods=['GET'])
+        @self.task.flask.route(f'{prefix}/finishTask', methods=['GET'])
         def route_finish_task():
             """
             when finished, ask node for log file.

@@ -10,11 +10,12 @@ def read_json (filename):
 
 if __name__ == '__main__':
 	dirname = os.path.abspath (os.path.dirname (__file__))
+	controller_path = os.path.abspath(os.path.join(dirname, '../../'))
 	parser = argparse.ArgumentParser ()
 	parser.add_argument ('-d', '--dataset', dest='dataset', required=True, type=str,
 		help='./relative/path/to/dataset/json/file')
 	parser.add_argument ('-o', '--output', dest='output', required=False, type=str,
-		default='../dml_file/conf', help='./relative/path/to/output/folder/, default = ../dml_file/conf/')
+		default='./dml_file/conf', help='./relative/path/to/output/folder/, default = ./dml_file/conf/')
 	parser.add_argument('-t', '--taskid', dest='taskid', required=False, type=str,
     	default='default', help='task id for distinguishing different tasks')
 	args = parser.parse_args ()
@@ -28,7 +29,8 @@ if __name__ == '__main__':
 		if 'train_len' not in node_conf:
 			node_conf ['train_len'] = -1
 			node_conf ['train_start_index'] = -1
-		path =  os.path.join (dirname, args.output, args.taskid)
+		print(controller_path)
+		path =  os.path.join (controller_path, args.output, args.taskid)
 		if not os.path.exists(path) :
 			os.makedirs(path)
 		conf_path = os.path.join (path, node_name + '_dataset.conf')
