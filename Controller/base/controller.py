@@ -303,7 +303,10 @@ class Controller(object):
                     e_node[en.name] = {'ip': en.ip, 'port': str(en.hostPort), 'emulator': e.nameW}
         for pn in self.task[taskID].pNode.values():
             p_node[pn.name] = {'ip': pn.ip, 'port': str(pn.hostPort)}
-        file_name = (os.path.join(self.dirName, 'node_info_'+ str(taskID) +'.json'))
+        # file_name = (os.path.join(self.dirName, '/node_info/', 'node_info_'+ str(taskID) +'.json'))
+        node_info_dir = os.path.join(self.dirName, 'node_info')
+        os.makedirs(node_info_dir, exist_ok=True)
+        file_name = os.path.join(node_info_dir, f'node_info_{taskID}.json')
         data = {'emulator': emulator, 'emulated_node': e_node, 'physical_node': p_node}
         with open(file_name, 'w') as f:
             f.writelines(json.dumps(data, indent=2))
@@ -526,11 +529,10 @@ class Controller(object):
             # 添加节点
             task = Task(taskID, self.dirName, manager_class=manager_class)
             self.task[taskID] = task
-            added_emulators = set()  
+            added_emulators = set()
 
             for node_name, node_info in allocation.items():
                 emu = self.emulator[node_info['emulator']]
-                # 如果这个emulator还没有添加到task中，就添加它
                 if emu.nameW not in added_emulators:
                     task.add_emulator(emu)
                     added_emulators.add(emu.nameW)
@@ -555,7 +557,7 @@ class Controller(object):
             self.save_node_info(taskID) # 保存节点信息到testbed
             # 修改
             self.send_tc(taskID) # 将tc信息发送给worker，没有的添加，有的更新
-            # self.launch_all_emulated(taskID)
+            self.launch_all_emulated(taskID)
             # success = self.__creat_log(taskID)
             # if not success:
             #     raise Exception("创建日志失败")

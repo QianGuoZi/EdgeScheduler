@@ -35,23 +35,22 @@ class TaskManager(metaclass=abc.ABCMeta):
             self.pNode[name] = NodeInfo(name, pn.ip, pn.hostPort)
         self.nodeNumber = len(self.eNode) + len(self.pNode)
 
-    #这几个端口不知道挂哪去了，草拟的
     def __load_default_route(self):
         @self.task.flask.route('/health')
         def health_check():
             return 'OK'
         
         prefix = self.task.url_prefix
-        @self.task.flask.route(f'{prefix}/startTask', methods=['POST'])
+        @self.task.flask.route(f'{prefix}/startTask', methods=['GET'])
         def route_start_task():
             """
             开始任务
             """
-            taskID = request.form.get('taskID')
+            taskID = request.args.get('taskID')
             print(f'start task {taskID}')
             if self.logFileFolder == '':
                 self.logFileFolder = os.path.join(self.task.dirName, 'dml_file/log', str(taskID),
-                                                  time.strftime('-%Y-%m-%d-%H-%M-%S', time.localtime(time.time())))
+                                                  time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time())))
                 os.makedirs(self.logFileFolder, exist_ok=True)
             msg = self.on_route_start(request)
             # return str explicitly is necessary.

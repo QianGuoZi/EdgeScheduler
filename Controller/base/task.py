@@ -20,7 +20,7 @@ class Task(object):
         self.ID: int = ID
         self.dirName: str = dir_name
         self.agentPort: int = 3333  # DO NOT change this port number.
-        self.taskPort = 5000 + ID
+        self.taskPort = 6000 + ID
 
         self.url_prefix = f'/task/{ID}'
 

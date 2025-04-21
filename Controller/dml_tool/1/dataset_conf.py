@@ -29,11 +29,11 @@ if __name__ == '__main__':
 		if 'train_len' not in node_conf:
 			node_conf ['train_len'] = -1
 			node_conf ['train_start_index'] = -1
-		print(controller_path)
+		# print(controller_path)
 		path =  os.path.join (controller_path, args.output, args.taskid)
 		if not os.path.exists(path) :
 			os.makedirs(path)
-		conf_path = os.path.join (path, node_name + '_dataset.conf')
+		conf_path = os.path.join (path, args.taskid + '_' + node_name + '_dataset.conf')
 		with open (conf_path, 'w') as f:
 			f.writelines (json.dumps (node_conf, indent=2))
    

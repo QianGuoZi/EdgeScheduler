@@ -302,6 +302,37 @@ class Manager(object):
             self.__reset_all_emulated(taskID)
             return ''  
         
+        @self.controller.flask.route('/conf/dataset', methods=['GET'])
+        def route_conf_dataset():
+            """
+            listen message from user, send dataset conf file to all nodes.
+            """
+            taskID = int(request.args.get('taskId'))
+            self.__send_conf(taskID, 'dataset')
+            return ''
+
+        @self.controller.flask.route('/conf/structure', methods=['GET'])
+        def route_conf_structure():
+            """
+            listen message from user, send structure conf file to all nodes.
+            """
+            taskID = int(request.args.get('taskId'))
+            self.__send_conf(taskID, 'structure')
+            return ''
+    
+    def __send_conf(self, taskID: int, conf_type: str):
+        dml_file_conf = os.path.join(self.controller.dirName, 'dml_file/conf', str(taskID))
+        for pn in self.controller.task[taskID].pNode.values():
+            file_path = os.path.join(dml_file_conf, pn.name + '_' + conf_type + '.conf')
+            with open(file_path, 'r') as f:
+                print('sent ' + conf_type + ' conf to ' + pn.name)
+                send_data('POST', '/conf/' + conf_type, pn.ip, pn.nodePort, files={'conf': f})
+        for en in self.controller.task[taskID].eNode.values():
+            file_path = os.path.join(dml_file_conf, en.name + '_' + conf_type + '.conf')
+            with open(file_path, 'r') as f:
+                print('sent ' + conf_type + ' conf to ' + en.name)
+                send_data('POST', '/conf/' + conf_type, en.ip, en.nodePort, files={'conf': f})
+        
     def __stop_all_emulated(self, taskID: int):
         def stop_emulated(_emulator_ip: str, _agent_port: int):
             send_data('GET', '/emulated/stop?taskID=' + str(taskID), _emulator_ip, _agent_port)

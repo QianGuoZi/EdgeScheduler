@@ -15,6 +15,7 @@ class GlManager(TaskManager):
         for pn in self.pNode.values ():
             send_data ('GET', '/start', pn.ip, pn.port)
         for en in self.eNode.values ():
+            print(f'send start to {en.name}, {en.ip}, {en.port}')
             send_data ('GET', '/start', en.ip, en.port)
         print ('start training')
         return ''
