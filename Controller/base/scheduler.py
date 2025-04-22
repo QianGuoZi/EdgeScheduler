@@ -19,9 +19,9 @@ class Scheduler(object):
         allocation = {}
         for node, connections in links_data.items():
             node_name = str(taskId) + '_' + node
-            print(f"Node: {node}")
+            # print(f"Node: {node}")
             for e_name, e_obj in self.controller.emulator.items():
-                print(f"Emulator name: {e_name}, Emulator object: {e_obj}")
+                # print(f"Emulator name: {e_name}, Emulator object: {e_obj}")
                 if e_obj.cpu - e_obj.cpuPreMap > 5 and e_obj.ram - e_obj.ramPreMap > 2:
                     allocation[node_name] = {'emulator': e_name, 'cpu': 5, 'ram': 2}
                 else :

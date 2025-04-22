@@ -4,7 +4,7 @@ import threading
 from typing import Dict, List, Type
 from .link import VirtualLink
 from .nfs import Nfs
-from .node import EmulatedNode, Emulator, PhysicalNode
+from .node import Node, EmulatedNode, Emulator, PhysicalNode
 
 from flask import Flask, request
 
@@ -30,6 +30,7 @@ class Task(object):
         self.eNode: Dict[str, EmulatedNode] = {}  # emulated node's name to emulated node object.
         self.vLink: Dict[int, VirtualLink] = {}  # virtual link ID to virtual link object.
         self.virtualLinkNumber: int = 0
+        self.deployedCount: int = 0
 
         # for auto deployment.
         self.W: Dict[int, Dict] = {}  # worker ID to {name, cpu, MB of ram}.
@@ -87,3 +88,14 @@ class Task(object):
                     continue
             
             raise TimeoutError(f"任务 {self.ID} 服务器启动超时")
+    
+    def add_virtual_link(self, n1: Node, n2: Node, bw: int, unit: str):
+        """
+        parameters will be passed to Linux Traffic Control.
+        n1-----bw----->>n2
+        """
+        assert bw > 0, Exception('bw is not bigger than 0')
+        assert unit in ['kbps', 'mbps'], Exception(
+            unit + ' is not in ["kbps", "mbps"]')
+        self.virtualLinkNumber += 1
+        n1.link_to(n2.name, str(bw) + unit, n2.ip, n2.hostPort)

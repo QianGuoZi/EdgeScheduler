@@ -33,7 +33,7 @@ services:
     ports:
       - "8001:4444"
     volumes:
-      - ./dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
+      - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
       - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro
       - dataset:/home/qianguo/EdgeScheduler/Worker/dataset/:ro
     command: python3 gl_peer.py
@@ -59,7 +59,7 @@ services:
     ports:
       - "8002:4444"
     volumes:
-      - ./dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
+      - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
       - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro
       - dataset:/home/qianguo/EdgeScheduler/Worker/dataset/:ro
     command: python3 gl_peer.py
@@ -85,7 +85,7 @@ services:
     ports:
       - "8003:4444"
     volumes:
-      - ./dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
+      - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
       - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro
       - dataset:/home/qianguo/EdgeScheduler/Worker/dataset/:ro
     command: python3 gl_peer.py
@@ -111,7 +111,7 @@ services:
     ports:
       - "8004:4444"
     volumes:
-      - ./dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
+      - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
       - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro
       - dataset:/home/qianguo/EdgeScheduler/Worker/dataset/:ro
     command: python3 gl_peer.py
@@ -137,7 +137,7 @@ services:
     ports:
       - "8005:4444"
     volumes:
-      - ./dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
+      - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
       - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro
       - dataset:/home/qianguo/EdgeScheduler/Worker/dataset/:ro
     command: python3 gl_peer.py

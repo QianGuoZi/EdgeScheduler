@@ -19,16 +19,17 @@ node_name = os.getenv ('NET_NODE_NAME')
 task_id = os.getenv('NET_TASK_ID')
 
 input_shape = nn.input_shape
-log_file = os.path.abspath (os.path.join (dirname, '../dml_file/log/', task_id, node_name + '.log'))
+controller_path = os.path.abspath (os.path.join(dirname, '../..'))
+log_file = os.path.abspath (os.path.join (controller_path, 'dml_file/log/', task_id, node_name + '.log'))
 worker_utils.set_log (log_file)
 conf = {}
 peer_list = []
 # configurable parameter, specify the dataset path.
-train_path = os.path.join (dirname, '../dataset/FASHION_MNIST/train_data')
+train_path = os.path.join (controller_path, 'dataset/FASHION_MNIST/train_data')
 train_images: np.ndarray
 train_labels: np.ndarray
 # configurable parameter, specify the dataset path.
-test_path = os.path.join (dirname, '../dataset/FASHION_MNIST/test_data')
+test_path = os.path.join (controller_path, 'dataset/FASHION_MNIST/test_data')
 test_images: np.ndarray
 test_labels: np.ndarray
 
@@ -65,7 +66,7 @@ def route_conf_d ():
 	test_images, test_labels = dml_utils.load_data (test_path, conf ['test_start_index'],
 		conf ['test_len'], input_shape)
 
-	filename = os.path.join (dirname, '../dml_file/conf', task_id, node_name + '_dataset.conf')
+	filename = os.path.join (controller_path, 'dml_file/conf', task_id, node_name + '_dataset.conf')
 	with open (filename, 'w') as fw:
 		fw.writelines (json.dumps (conf, indent=2))
 	return ''
@@ -78,7 +79,7 @@ def route_conf_s ():
 	conf.update (json.loads (f))
 	print ('POST at /conf/structure')
 
-	filename = os.path.join (dirname, '../dml_file/conf', task_id, node_name + '_structure.conf')
+	filename = os.path.join (controller_path, 'dml_file/conf', task_id, node_name + '_structure.conf')
 	with open (filename, 'w') as fw:
 		fw.writelines (json.dumps (conf, indent=2))
 

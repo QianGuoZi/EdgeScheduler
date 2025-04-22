@@ -247,17 +247,17 @@ class Controller(object):
         })
         self.preMap[en.id] = emulator.idW
 
-    def load_link(self,taskId: int, links_json: Dict):
+    def load_link(self, taskID: int, links_json: Dict):
         for name in links_json:
-            nodeName = str(taskId) + '_' + name
+            nodeName = str(taskID) + '_' + name
             src = self.name_to_node(nodeName)
             for dest_json in links_json[name]:
-                destName = str(taskId) + '_' + dest_json['dest']
+                destName = str(taskID) + '_' + dest_json['dest']
                 dest = self.name_to_node(destName)
                 unit = dest_json['bw'][-4:]
                 _bw = int(dest_json['bw'][:-4])
-                print(f"{destName}, {dest}")
-                self.__add_virtual_link(src, dest, _bw, unit)
+                # print(f"{destName}, {dest}")
+                self.task[taskID].add_virtual_link(src, dest, _bw, unit)
 
     def name_to_node(self, name: str) -> Node:
         """
@@ -270,16 +270,16 @@ class Controller(object):
         else:
             Exception('no such node called ' + name)
 
-    def __add_virtual_link(self, n1: Node, n2: Node, bw: int, unit: str):
-        """
-        parameters will be passed to Linux Traffic Control.
-        n1-----bw----->>n2
-        """
-        assert bw > 0, Exception('bw is not bigger than 0')
-        assert unit in ['kbps', 'mbps'], Exception(
-            unit + ' is not in ["kbps", "mbps"]')
-        self.virtualLinkNumber += 1
-        n1.link_to(n2.name, str(bw) + unit, n2.ip, n2.hostPort)
+    # def __add_virtual_link(self, n1: Node, n2: Node, bw: int, unit: str):
+    #     """
+    #     parameters will be passed to Linux Traffic Control.
+    #     n1-----bw----->>n2
+    #     """
+    #     assert bw > 0, Exception('bw is not bigger than 0')
+    #     assert unit in ['kbps', 'mbps'], Exception(
+    #         unit + ' is not in ["kbps", "mbps"]')
+    #     self.virtualLinkNumber += 1
+    #     n1.link_to(n2.name, str(bw) + unit, n2.ip, n2.hostPort)
 
     def save_yml(self, taskID: int):
         """
@@ -313,11 +313,11 @@ class Controller(object):
 
     def send_tc(self, taskID: int):
         # self.__set_emulated_tc_listener()
-        if self.virtualLinkNumber > 0:
+        if self.task[taskID].virtualLinkNumber > 0:
             # send the tc settings to emulators.
             self.__send_emulated_tc(taskID)
             # send the tc settings to physical nodes.
-            self.__send_physical_tc()
+            self.__send_physical_tc(taskID)
         else:
             print('tc finish')
 
@@ -325,6 +325,7 @@ class Controller(object):
             """初始化所有路由"""
             @self.flask.route('/emulated/tc', methods=['POST'])
             def route_emulated_tc():
+                taskID = int(request.form['taskID'])
                 data: Dict = json.loads(request.form['data'])
                 for name, ret in data.items():
                     if 'msg' in ret:
@@ -333,8 +334,8 @@ class Controller(object):
                     elif 'number' in ret:
                         print('emulated node ' + name + ' tc succeed')
                         with self.lock:
-                            self.deployedCount += int(ret['number'])
-                            if self.deployedCount == self.virtualLinkNumber:
+                            self.task[taskID].deployedCount += int(ret['number'])
+                            if self.task[taskID].deployedCount == self.task[taskID].virtualLinkNumber:
                                 print('tc finish')
                 return ''
 
@@ -356,9 +357,9 @@ class Controller(object):
             # the emulator will deploy all tc settings of its emulated nodes.
             print('send_emulated_tc: send to ' + emulator.nameW)
             send_data('POST', '/emulated/tc', emulator.ipW, self.agentPort,
-                      data={'data': json.dumps(data)})
+                      data={'taskID': taskID,'data': json.dumps(data)})
 
-    def __send_physical_tc(self):
+    def __send_physical_tc(self, taskID: int):
         """
         send the tc settings to physical nodes.
         this request can be received by worker/agent.py, route_physical_tc ().
@@ -379,8 +380,8 @@ class Controller(object):
             if res == '':
                 print('physical node ' + pn.name + ' tc succeed')
                 with self.lock:
-                    self.deployedCount += len(pn.tc)
-                    if self.deployedCount == self.virtualLinkNumber:
+                    self.task[taskID].deployedCount += len(pn.tc)
+                    if self.task[taskID].deployedCount == self.task[taskID].virtualLinkNumber:
                         print('tc finish')
             else:
                 print('physical node ' + pn.name + ' tc failed, err:')
@@ -536,11 +537,11 @@ class Controller(object):
                 if emu.nameW not in added_emulators:
                     task.add_emulator(emu)
                     added_emulators.add(emu.nameW)
-                print(f"添加节点 {node_name} 到任务 {taskID} 的模拟器 {emu.nameW}")
+                print(f"添加任务 {taskID} 的节点 {node_name} 到模拟器 {emu.nameW}")
                 en = self.add_emulated_node (node_name, taskID, '/home/qianguo/EdgeScheduler/Worker/dml_app/'+str(taskID),
                     ['python3', 'gl_peer.py'], 'task'+ '1' +':v1.0', cpu=node_info['cpu'], ram=node_info['ram'], unit='G', emulator=emu)
                 task.add_emulator_node(en)
-                en.mount_local_path ('./dml_file', '/home/qianguo/EdgeScheduler/Worker/dml_file')
+                en.mount_local_path ('../dml_file', '/home/qianguo/EdgeScheduler/Worker/dml_file')
                 en.mount_nfs (nfsApp, '/home/qianguo/EdgeScheduler/Worker/dml_app')
                 en.mount_nfs (nfsDataset, '/home/qianguo/EdgeScheduler/Worker/dataset')
                     
@@ -567,6 +568,9 @@ class Controller(object):
         except Exception as e:
             print(f"部署任务 {taskID} 失败: {str(e)}")
             return False
+    
+    def start(self):
+        self.flask.run(host='0.0.0.0', port=self.port, threaded=True)
 
 def load_task_manager_class(file_path: str) -> Type[TaskManager]:
     """动态加载用户的TaskManager子类"""
