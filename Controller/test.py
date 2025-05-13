@@ -15,7 +15,7 @@ if __name__ == '__main__':
 	nfsDataset = controller.add_nfs (tag='dataset', path=os.path.join (dirName, 'dataset'))
 	controller.export_nfs()
 	# 初始化模拟器
-	emu1 = controller.add_emulator ('emulator-1', '222.201.187.51', cpu=128, ram=256, unit='G')
+	emu1 = controller.add_emulator ('emulator-1', '222.201.187.52', cpu=128, ram=256, unit='G')
 	controller.send_emulator_info() # 发送模拟器信息
 
 	

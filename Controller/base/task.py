@@ -40,12 +40,13 @@ class Task(object):
         self.preMap: Dict[int, int] = {}  # node ID to worker ID.
 
         self.executor = ThreadPoolExecutor()
+        self.server_ready = threading.Event()
 
         # for default manager.
         self.taskManager = manager_class(self)
 
         self.start_server()
-        self._wait_for_server()
+        self.wait_for_server()
     
     def add_emulator_node(self, en : EmulatedNode):
         """
@@ -70,7 +71,7 @@ class Task(object):
         self.server_thread.daemon = True
         self.server_thread.start()
     
-    def _wait_for_server(self, timeout=30):
+    def wait_for_server(self, timeout=30):
             """等待服务器启动完成"""
             import time
             import requests
@@ -81,6 +82,7 @@ class Task(object):
                 try:
                     response = requests.get(f"http://localhost:{self.taskPort}/health")
                     if response.status_code == 200:
+                        self.server_ready.set()
                         print(f"任务 {self.ID} 服务器启动成功")
                         return True
                 except RequestException:

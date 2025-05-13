@@ -41,12 +41,12 @@ class TaskManager(metaclass=abc.ABCMeta):
             return 'OK'
         
         prefix = self.task.url_prefix
-        @self.task.flask.route(f'{prefix}/startTask', methods=['GET'])
+        @self.task.flask.route(f'{prefix}/startTask', methods=['POST'])
         def route_start_task():
             """
             开始任务
             """
-            taskID = request.args.get('taskID')
+            taskID = request.form.get('taskID')
             print(f'start task {taskID}')
             if self.logFileFolder == '':
                 self.logFileFolder = os.path.join(self.task.dirName, 'dml_file/log', str(taskID),

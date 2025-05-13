@@ -40,7 +40,7 @@ class Controller(object):
         self.nodePort: int = 4444  # DO NOT change this port number.
         # emulated node maps dml port to emulator's host port starting from $(base_host_port).
         self.hostPort: int = base_host_port
-        self.taskPort: int = 5000
+        self.taskPort: int = 6000
         self.address: str = self.ip + ':' + str(self.port)
         self.dirName: str = dir_name
 
@@ -501,7 +501,7 @@ class Controller(object):
                 data={'taskID': taskID}
             )
             
-            if res == '1':
+            if res == '':
                 print('日志创建成功')
                 return True
             else:
@@ -530,6 +530,10 @@ class Controller(object):
             # 添加节点
             task = Task(taskID, self.dirName, manager_class=manager_class)
             self.task[taskID] = task
+            if not task.wait_for_server():
+                raise Exception("任务服务器启动失败")
+            print(f"任务 {taskID} 服务器启动成功")
+
             added_emulators = set()
 
             for node_name, node_info in allocation.items():
@@ -559,10 +563,10 @@ class Controller(object):
             # 修改
             self.send_tc(taskID) # 将tc信息发送给worker，没有的添加，有的更新
             self.launch_all_emulated(taskID)
-            # success = self.__creat_log(taskID)
-            # if not success:
-            #     raise Exception("创建日志失败")
-            # print("日志创建完成") 
+            success = self.__creat_log(taskID)
+            if not success:
+                raise Exception("创建日志失败")
+            print("日志创建完成") 
             return True
         
         except Exception as e:
