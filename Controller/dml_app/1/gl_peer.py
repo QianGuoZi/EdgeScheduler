@@ -20,7 +20,10 @@ task_id = os.getenv('NET_TASK_ID')
 
 input_shape = nn.input_shape
 controller_path = os.path.abspath (os.path.join(dirname, '../..'))
+log_dir = os.path.abspath(os.path.join(controller_path, 'dml_file/log', task_id))
+os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.abspath (os.path.join (controller_path, 'dml_file/log/', task_id, node_name + '.log'))
+print ('log_file:', log_file)
 worker_utils.set_log (log_file)
 conf = {}
 peer_list = []
