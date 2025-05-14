@@ -326,12 +326,12 @@ class Manager(object):
             file_path = os.path.join(dml_file_conf, pn.name + '_' + conf_type + '.conf')
             with open(file_path, 'r') as f:
                 print('sent ' + conf_type + ' conf to ' + pn.name)
-                send_data('POST', '/conf/' + conf_type, pn.ip, pn.nodePort, files={'conf': f})
+                send_data('POST', '/conf/' + conf_type, pn.ip, pn.hostPort, files={'conf': f})
         for en in self.controller.task[taskID].eNode.values():
             file_path = os.path.join(dml_file_conf, en.name + '_' + conf_type + '.conf')
             with open(file_path, 'r') as f:
                 print('sent ' + conf_type + ' conf to ' + en.name)
-                send_data('POST', '/conf/' + conf_type, en.ip, en.nodePort, files={'conf': f})
+                send_data('POST', '/conf/' + conf_type, en.ip, en.hostPort, files={'conf': f})
         
     def __stop_all_emulated(self, taskID: int):
         def stop_emulated(_emulator_ip: str, _agent_port: int):
