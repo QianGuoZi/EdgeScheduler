@@ -49,6 +49,7 @@ def route_heartbeat ():
 	it will deploy the container's tc settings.
 	"""
 	name = request.args.get ('name')
+	taskID = name.split("_")[0]
 	t_time = time.time ()
 	with lock:
 		# deploy the emulated node's tc settings.
@@ -56,7 +57,7 @@ def route_heartbeat ():
 			ret = {}
 			deploy_emulated_tc (name, ret)
 			# this request can be received by controller/base/node.py, route_emulated_tc ().
-			requests.post ('http://' + ctl_addr + '/emulated/tc', data={'data': json.dumps (ret)})
+			requests.post ('http://' + ctl_addr + '/emulated/tc', data={'taskID': taskID,'data': json.dumps (ret)})
 		heartbeat [name] = t_time
 	return ''
 
