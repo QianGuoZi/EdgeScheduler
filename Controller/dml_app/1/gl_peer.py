@@ -12,7 +12,7 @@ from nns.nn_fashion_mnist import nn  # configurable parameter, from nns.whatever
 
 dirname = os.path.abspath (os.path.dirname (__file__))
 
-dml_port = os.getenv ('DML_PORT')
+dml_port = os.getenv ('NODE_PORT')
 ctl_addr = os.getenv ('NET_CTL_ADDRESS')
 agent_addr = os.getenv ('NET_AGENT_ADDRESS')
 node_name = os.getenv ('NET_NODE_NAME')
