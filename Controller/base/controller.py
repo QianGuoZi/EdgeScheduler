@@ -558,15 +558,16 @@ class Controller(object):
             self.load_link (taskID, links_json)
 
             # 保存信息
+            task.taskManager.load_node_info() # 保存节点信息到task
             self.save_yml(taskID) # 保存yml文件到controller
             self.save_node_info(taskID) # 保存节点信息到testbed
             # 修改
             self.send_tc(taskID) # 将tc信息发送给worker，没有的添加，有的更新
             self.launch_all_emulated(taskID)
-            success = self.__creat_log(taskID)
-            if not success:
-                raise Exception("创建日志失败")
-            print("日志创建完成") 
+            # success = self.__creat_log(taskID)
+            # if not success:
+            #     raise Exception("创建日志失败")
+            # print("日志创建完成") 
             return True
         
         except Exception as e:
