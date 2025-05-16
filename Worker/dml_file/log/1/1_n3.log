@@ -1,6 +1,13 @@
  * Running on all addresses.
    WARNING: This is a development server. Do not use it in a production deployment.
- * Running on http://172.19.0.4:4444/ (Press CTRL+C to quit)
+ * Running on http://172.19.0.5:4444/ (Press CTRL+C to quit)
+127.0.0.1 - - [16/May/2025 09:30:33] "GET /hi HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2025 09:31:03] "GET /hi HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2025 09:31:33] "GET /hi HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2025 09:32:03] "GET /hi HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2025 09:32:34] "GET /hi HTTP/1.1" 200 -
+222.201.187.50 - - [16/May/2025 09:32:56] "GET /start HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2025 09:33:04] "GET /hi HTTP/1.1" 200 -
 Exception on /conf/structure [POST]
 Traceback (most recent call last):
   File "/usr/local/lib/python3.6/dist-packages/flask/app.py", line 2073, in wsgi_app
@@ -11,10 +18,10 @@ Traceback (most recent call last):
     rv = self.dispatch_request()
   File "/usr/local/lib/python3.6/dist-packages/flask/app.py", line 1502, in dispatch_request
     return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
-  File "gl_peer.py", line 87, in route_conf_s
+  File "gl_peer.py", line 86, in route_conf_s
     with open (filename, 'w') as fw:
 FileNotFoundError: [Errno 2] No such file or directory: '/home/qianguo/EdgeScheduler/Worker/dml_file/conf/1/1_n3_structure.conf'
-222.201.187.50 - - [15/May/2025 08:59:12] "[35m[1mPOST /conf/structure HTTP/1.1[0m" 500 -
+222.201.187.50 - - [16/May/2025 09:33:20] "[35m[1mPOST /conf/structure HTTP/1.1[0m" 500 -
 Exception on /conf/dataset [POST]
 Traceback (most recent call last):
   File "/usr/local/lib/python3.6/dist-packages/flask/app.py", line 2073, in wsgi_app
@@ -25,94 +32,18 @@ Traceback (most recent call last):
     rv = self.dispatch_request()
   File "/usr/local/lib/python3.6/dist-packages/flask/app.py", line 1502, in dispatch_request
     return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
-  File "gl_peer.py", line 74, in route_conf_d
+  File "gl_peer.py", line 73, in route_conf_d
     with open (filename, 'w') as fw:
 FileNotFoundError: [Errno 2] No such file or directory: '/home/qianguo/EdgeScheduler/Worker/dml_file/conf/1/1_n3_dataset.conf'
-222.201.187.50 - - [15/May/2025 08:59:15] "[35m[1mPOST /conf/dataset HTTP/1.1[0m" 500 -
-127.0.0.1 - - [15/May/2025 08:59:42] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:00:12] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:00:42] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:01:12] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:01:42] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:02:12] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:02:42] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:03:12] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:03:43] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:04:13] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:04:43] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:05:13] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:05:43] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:06:13] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:06:43] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:07:13] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:07:43] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:08:13] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:08:44] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:09:14] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:09:44] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:10:14] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:10:44] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:11:14] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:11:44] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:12:14] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:12:44] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:13:14] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:13:44] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:14:15] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:14:45] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:15:15] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:15:45] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:16:15] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:16:45] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:17:15] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:17:45] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:18:15] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:18:45] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:19:16] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:19:46] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:20:16] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:20:46] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:21:16] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:21:46] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:22:16] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:22:46] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:23:16] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:23:46] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:24:17] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:24:47] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:25:17] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:25:47] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:26:17] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:26:47] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:27:17] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:27:47] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:28:17] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:28:47] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:29:17] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:29:48] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:30:18] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:30:48] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:31:18] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:31:48] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:32:18] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:32:48] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:33:18] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:33:48] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:34:18] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:34:49] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:35:19] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:35:49] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:36:19] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:36:49] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:37:19] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:37:49] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:38:19] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:38:49] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:39:19] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:39:49] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:40:20] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:40:50] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:41:20] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:41:50] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:42:20] "GET /hi HTTP/1.1" 200 -
-127.0.0.1 - - [15/May/2025 09:42:50] "GET /hi HTTP/1.1" 200 -
+222.201.187.50 - - [16/May/2025 09:33:30] "[35m[1mPOST /conf/dataset HTTP/1.1[0m" 500 -
+127.0.0.1 - - [16/May/2025 09:33:34] "GET /hi HTTP/1.1" 200 -
+222.201.187.50 - - [16/May/2025 09:33:38] "GET /start HTTP/1.1" 200 -
+Aggregate: accuracy=0.19200000011920929, round=0,
+127.0.0.1 - - [16/May/2025 09:34:04] "GET /hi HTTP/1.1" 200 -
+222.201.187.50 - - [16/May/2025 09:34:27] "GET /start HTTP/1.1" 200 -
+Aggregate: accuracy=0.19200000011920929, round=0,
+127.0.0.1 - - [16/May/2025 09:34:34] "GET /hi HTTP/1.1" 200 -
+222.201.187.50 - - [16/May/2025 09:34:38] "GET /start HTTP/1.1" 200 -
+Aggregate: accuracy=0.19200000011920929, round=0,
+127.0.0.1 - - [16/May/2025 09:35:04] "GET /hi HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2025 09:35:34] "GET /hi HTTP/1.1" 200 -
