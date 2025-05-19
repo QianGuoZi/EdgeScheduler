@@ -61,6 +61,7 @@ def route_conf_d ():
 	f = request.files.get ('conf').read ()
 	conf.update (json.loads (f))
 	print ('POST at /conf/dataset')
+	print ('conf:', conf)
 
 	global train_images, train_labels
 	train_images, train_labels = dml_utils.load_data (train_path, conf ['train_start_index'],
@@ -68,8 +69,12 @@ def route_conf_d ():
 	global test_images, test_labels
 	test_images, test_labels = dml_utils.load_data (test_path, conf ['test_start_index'],
 		conf ['test_len'], input_shape)
+	
+	conf_dir = os.path.join(controller_path, 'dml_file/conf', task_id)
+	os.makedirs(conf_dir, exist_ok=True)
 
-	filename = os.path.join (controller_path, 'dml_file/conf', task_id, node_name + '_dataset.conf')
+	filename = os.path.join(conf_dir, node_name + '_dataset.conf')
+	
 	with open (filename, 'w') as fw:
 		fw.writelines (json.dumps (conf, indent=2))
 	return ''
@@ -81,8 +86,13 @@ def route_conf_s ():
 	f = request.files.get ('conf').read ()
 	conf.update (json.loads (f))
 	print ('POST at /conf/structure')
+	print ('conf:', conf)
 
-	filename = os.path.join (controller_path, 'dml_file/conf', task_id, node_name + '_structure.conf')
+	conf_dir = os.path.join(controller_path, 'dml_file/conf', task_id)
+	os.makedirs(conf_dir, exist_ok=True)
+
+	filename = os.path.join(conf_dir, node_name + '_structure.conf')
+
 	with open (filename, 'w') as fw:
 		fw.writelines (json.dumps (conf, indent=2))
 
