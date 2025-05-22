@@ -32,6 +32,9 @@ class Controller(object):
         self.currVID: int = 0  # build-in virtual link ID.
         self.currTID: int = 0  # build-in task ID.
 
+        self._task_id_counter = 1  # 添加任务ID计数器
+        self._task_id_lock = threading.Lock()  # 添加锁以保证线程安全
+
 
         self.flask = Flask(__name__)
         self.ip: str = ip
@@ -105,8 +108,12 @@ class Controller(object):
         """
         获取下一个任务id
         """
-        self.currTID += 1
-        return self.currTID
+        # self.currTID += 1
+        # return self.currTID
+        with self._task_id_lock:
+            task_id = self._task_id_counter
+            self._task_id_counter += 1
+            return task_id
     
     def add_nfs(self, tag: str, path: str, ip: str = '', mask: int = 16) -> Nfs:
         assert tag != '', Exception('tag cannot be empty')
