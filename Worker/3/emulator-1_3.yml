@@ -1,0 +1,143 @@
+version: "2.1"
+volumes:
+  dml_app:
+    driver_opts:
+      type: "nfs"
+      o: "addr=222.201.187.50,ro"
+      device: ":/home/qianguo/Edge-Scheduler/Controller/dml_app"
+  dataset:
+    driver_opts:
+      type: "nfs"
+      o: "addr=222.201.187.50,ro"
+      device: ":/home/qianguo/Edge-Scheduler/Controller/dataset"
+services:
+  3_p1:
+    container_name: 3_p1
+    image: task1:v1.0
+    working_dir: /home/qianguo/EdgeScheduler/Worker/dml_app/3
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+    cpuset: 0-4
+    mem_limit: 2048M
+    environment:
+      - EDGE_TB_ID=11
+      - NET_NODE_NAME=3_p1
+      - NODE_PORT=4444
+      - NET_CTL_ADDRESS=222.201.187.50:3333
+      - NET_AGENT_ADDRESS=222.201.187.52:3333
+      - NET_TASK_ID=3
+    healthcheck:
+      test: curl -f http://localhost:4444/hi
+    ports:
+      - "8011:4444"
+    volumes:
+      - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
+      - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro
+      - dataset:/home/qianguo/EdgeScheduler/Worker/dataset/:ro
+    command: python3 gl_peer.py
+  3_n1:
+    container_name: 3_n1
+    image: task1:v1.0
+    working_dir: /home/qianguo/EdgeScheduler/Worker/dml_app/3
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+    cpuset: 5-9
+    mem_limit: 2048M
+    environment:
+      - EDGE_TB_ID=12
+      - NET_NODE_NAME=3_n1
+      - NODE_PORT=4444
+      - NET_CTL_ADDRESS=222.201.187.50:3333
+      - NET_AGENT_ADDRESS=222.201.187.52:3333
+      - NET_TASK_ID=3
+    healthcheck:
+      test: curl -f http://localhost:4444/hi
+    ports:
+      - "8012:4444"
+    volumes:
+      - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
+      - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro
+      - dataset:/home/qianguo/EdgeScheduler/Worker/dataset/:ro
+    command: python3 gl_peer.py
+  3_n2:
+    container_name: 3_n2
+    image: task1:v1.0
+    working_dir: /home/qianguo/EdgeScheduler/Worker/dml_app/3
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+    cpuset: 10-14
+    mem_limit: 2048M
+    environment:
+      - EDGE_TB_ID=13
+      - NET_NODE_NAME=3_n2
+      - NODE_PORT=4444
+      - NET_CTL_ADDRESS=222.201.187.50:3333
+      - NET_AGENT_ADDRESS=222.201.187.52:3333
+      - NET_TASK_ID=3
+    healthcheck:
+      test: curl -f http://localhost:4444/hi
+    ports:
+      - "8013:4444"
+    volumes:
+      - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
+      - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro
+      - dataset:/home/qianguo/EdgeScheduler/Worker/dataset/:ro
+    command: python3 gl_peer.py
+  3_n3:
+    container_name: 3_n3
+    image: task1:v1.0
+    working_dir: /home/qianguo/EdgeScheduler/Worker/dml_app/3
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+    cpuset: 15-19
+    mem_limit: 2048M
+    environment:
+      - EDGE_TB_ID=14
+      - NET_NODE_NAME=3_n3
+      - NODE_PORT=4444
+      - NET_CTL_ADDRESS=222.201.187.50:3333
+      - NET_AGENT_ADDRESS=222.201.187.52:3333
+      - NET_TASK_ID=3
+    healthcheck:
+      test: curl -f http://localhost:4444/hi
+    ports:
+      - "8014:4444"
+    volumes:
+      - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
+      - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro
+      - dataset:/home/qianguo/EdgeScheduler/Worker/dataset/:ro
+    command: python3 gl_peer.py
+  3_n4:
+    container_name: 3_n4
+    image: task1:v1.0
+    working_dir: /home/qianguo/EdgeScheduler/Worker/dml_app/3
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+    cpuset: 20-24
+    mem_limit: 2048M
+    environment:
+      - EDGE_TB_ID=15
+      - NET_NODE_NAME=3_n4
+      - NODE_PORT=4444
+      - NET_CTL_ADDRESS=222.201.187.50:3333
+      - NET_AGENT_ADDRESS=222.201.187.52:3333
+      - NET_TASK_ID=3
+    healthcheck:
+      test: curl -f http://localhost:4444/hi
+    ports:
+      - "8015:4444"
+    volumes:
+      - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
+      - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro
+      - dataset:/home/qianguo/EdgeScheduler/Worker/dataset/:ro
+    command: python3 gl_peer.py
