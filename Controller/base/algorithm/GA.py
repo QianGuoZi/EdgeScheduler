@@ -35,7 +35,23 @@ class NodeMappingGA:
         # 方法根据当前个体计算各资源的最大负载。
         cpu_load = max(np.sum([self.virtual_nodes[i]['cpu'] for i, p in enumerate(individual)], axis=0) / self.physical_nodes[p]['cpu'] for p in set(individual))
         ram_load = max(np.sum([self.virtual_nodes[i]['ram'] for i, p in enumerate(individual)], axis=0) / self.physical_nodes[p]['ram'] for p in set(individual))
-        bw_load = max(sum(self.virtual_links[v]['bw'] for v in self.virtual_links if individual[self.virtual_links[v]['src']] != individual[self.virtual_links[v]['dst']]) / self.physical_links[p]['bw'] for p in self.physical_links)
+        bw_load = 0
+        for v_link in self.virtual_links:
+            src_phys = individual[v_link['src']]
+            dst_phys = individual[v_link['dst']]
+            if src_phys != dst_phys:  # 如果虚拟链路的两端不在同一个物理节点上
+                # 找到对应的物理链路
+                found = False
+                for p_link in self.physical_links:
+                    if (p_link['src'] == src_phys and p_link['dst'] == dst_phys) or (p_link['src'] == dst_phys and p_link['dst'] == src_phys):
+                        bw_load += v_link['bw'] / p_link['bw']
+                        found = True
+                        break
+                if not found:
+                    raise ValueError("No matching physical link found for virtual link")
+        
+        bw_load = bw_load if bw_load > 0 else 0
+        
         return cpu_load, ram_load, bw_load
     
     def select(self):
@@ -77,8 +93,10 @@ class NodeMappingGA:
 # 示例使用
 physical_nodes = [{'cpu': 32, 'ram': 64}, {'cpu': 32, 'ram': 64}, {'cpu': 32, 'ram': 64}]
 virtual_nodes = [{'cpu': 8, 'ram': 16}, {'cpu': 16, 'ram': 32}]
-physical_links = {(0, 1): {'bw': 1000}, (1, 2): {'bw': 1000}, (0, 2): {'bw': 1000}}
-virtual_links = {(0, 1): {'bw': 500}}
+# physical_links = {(0, 1): {'bw': 1000}, (1, 2): {'bw': 1000}, (0, 2): {'bw': 1000}}
+physical_links = [{'src': 0, 'dst': 1, 'bw': 1000}, {'src': 1, 'dst': 2, 'bw': 1000}, {'src': 0,'dst': 2, 'bw': 1000}]
+# virtual_links = {(0, 1): {'bw': 500}}
+virtual_links = [{'src': 0, 'dst': 1, 'bw': 500}]
 
 ga = NodeMappingGA(physical_nodes, virtual_nodes, physical_links, virtual_links)
 best_solution = ga.run()

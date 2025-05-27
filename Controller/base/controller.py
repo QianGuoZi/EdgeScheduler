@@ -54,6 +54,9 @@ class Controller(object):
         self.vLink: Dict[int, VirtualLink] = {}  # virtual link ID to virtual link object.
         self.virtualLinkNumber: int = 0
 
+        self.emulatorLink = {}  # 存储emulator之间的带宽信息
+        self.emulatorLinkPreMap = {} 
+
         self.task: Dict[int, Task] = {} # task ID to task object.
 
         # for auto deployment.
@@ -114,7 +117,46 @@ class Controller(object):
             task_id = self._task_id_counter
             self._task_id_counter += 1
             return task_id
+
+    def add_emulator_bw(self, emulator1: str, emulator2: str, bw: int):
+        """添加两个节点间的带宽信息"""
+        if emulator1 not in self.emulatorLink:
+            self.emulatorLink[emulator1] = {}
+        if emulator2 not in self.emulatorLink:
+            self.emulatorLink[emulator2] = {}
+            
+        self.emulatorLink[emulator1][emulator2] = bw
+        self.emulatorLink[emulator2][emulator1] = bw  # 对称存储
+        
+    def get_bw(self, emulator1: str, emulator2: str) -> int:
+        """获取两个节点间剩余的带宽"""
+        try:
+            return self.emulatorLink[emulator1][emulator2]-self.emulatorLinkPreMap[emulator1][emulator2]
+        except KeyError:
+            return 0  # 或者抛出异常
     
+    def add_emulator_bw_pre_map(self, emulator1: str, emulator2: str, bw: int):
+        """添加两个节点间的带宽预分配信息"""
+        if emulator1 not in self.emulatorLinkPreMap:
+            self.emulatorLinkPreMap[emulator1] = {}
+        if emulator2 not in self.emulatorLinkPreMap:
+            self.emulatorLinkPreMap[emulator2] = {}
+            
+        self.emulatorLinkPreMap[emulator1][emulator2] = bw
+        self.emulatorLinkPreMap[emulator2][emulator1] = bw
+    
+    def iter_bandwidth(self):
+        """遍历所有节点间的带宽
+        
+        Yields:
+            tuple: (emulator1, emulator2, bandwidth, used_bandwidth)
+        """
+        for emu1 in self.emulatorLink:
+            for emu2, bw in self.emulatorLink[emu1].items():
+                used_bw = (self.emulatorLinkPreMap.get(emu1, {}).get(emu2, 0) 
+                        if emu1 in self.emulatorLinkPreMap else 0)
+                yield emu1, emu2, bw, used_bw
+
     def add_nfs(self, tag: str, path: str, ip: str = '', mask: int = 16) -> Nfs:
         assert tag != '', Exception('tag cannot be empty')
         assert tag not in self.nfs, Exception(tag + ' has been used')
