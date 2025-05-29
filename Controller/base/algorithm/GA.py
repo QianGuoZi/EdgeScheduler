@@ -125,7 +125,7 @@ class NodeMappingGA:
 
 # 示例使用
 physical_nodes = [{'cpu': 32, 'ram': 64}, {'cpu': 32, 'ram': 64}, {'cpu': 32, 'ram': 64}]
-virtual_nodes = [{'cpu': 8, 'ram': 16}, {'cpu': 16, 'ram': 32}, {'cpu': 16, 'ram': 32}]
+virtual_nodes = [{'cpu': 1, 'ram': 8}, {'cpu': 1, 'ram': 8}, {'cpu': 16, 'ram': 32}]
 # physical_links = {(0, 1): {'bw': 1000}, (1, 2): {'bw': 1000}, (0, 2): {'bw': 1000}}
 physical_links = [{'src': 0, 'dst': 1, 'bw': 1000}, {'src': 1, 'dst': 2, 'bw': 1000}, {'src': 0,'dst': 2, 'bw': 1000}]
 # virtual_links = {(0, 1): {'bw': 500}}

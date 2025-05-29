@@ -61,4 +61,12 @@ class Scheduler(object):
         ga = NodeMappingGA(physical_nodes, virtual_nodes, physical_links, virtual_links)
         best_solution = ga.run()
         print("Best Solution:", best_solution)
+        for i, node in enumerate(virtual_nodes):
+            if best_solution[i] is not None:
+                allocation[node['name']] = {
+                    'emulator': physical_nodes[best_solution[i]]['name'],
+                    'cpu': node['cpu'],
+                    'ram': node['ram']
+                }
+        print("Allocation:", allocation)
         return allocation
