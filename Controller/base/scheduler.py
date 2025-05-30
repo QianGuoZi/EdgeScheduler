@@ -46,11 +46,14 @@ class Scheduler(object):
                 'cpu': 5,
                 'ram': 2
             })
-            virtual_links.append({
-                'src': node_name,
-                'dst': connections['dest'],
-                'bw': connections['bw']
-            })
+            for dest in connections:
+                dest_node = str(taskId) + '_' + connections['dest']
+                bw = int(dest['bw'].replace('mbps', ''))  # 转换带宽值为整数
+                virtual_links.append({
+                    'src': node_name,
+                    'dst': dest_node,
+                    'bw': bw
+                })
             # print(f"Node: {node} ")
             # for e_name, e_obj in self.controller.emulator.items():
             #     # print(f"Emulator name: {e_name}, Emulator object: {e_obj}")

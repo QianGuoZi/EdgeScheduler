@@ -15,8 +15,11 @@ if __name__ == '__main__':
 	nfsDataset = controller.add_nfs (tag='dataset', path=os.path.join (dirName, 'dataset'))
 	controller.export_nfs()
 	# 初始化模拟器
-	emu1 = controller.add_emulator ('emulator-1', '222.201.187.52', cpu=128, ram=256, unit='G')
+	emu1 = controller.add_emulator ('emulator-1', '222.201.187.51', cpu=128, ram=256, unit='G')
+	emu2 = controller.add_emulator ('emulator-2', '222.201.187.52', cpu=128, ram=256, unit='G')
 	controller.send_emulator_info() # 发送模拟器信息
-
+	# 添加物理链路
+	controller.add_emulator_bw('emulator-1', 'emulator-2', bw=1000)  
+	controller.add_emulator_bw('emulator-2', 'emulator-1', bw=1000)
 	
 	controller.flask.run(host='0.0.0.0', port=controller.port, threaded=True)

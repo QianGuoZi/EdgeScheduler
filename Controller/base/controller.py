@@ -122,11 +122,11 @@ class Controller(object):
         """添加两个节点间的带宽信息"""
         if emulator1 not in self.emulatorLink:
             self.emulatorLink[emulator1] = {}
-        if emulator2 not in self.emulatorLink:
-            self.emulatorLink[emulator2] = {}
+        # if emulator2 not in self.emulatorLink:
+        #     self.emulatorLink[emulator2] = {}
             
         self.emulatorLink[emulator1][emulator2] = bw
-        self.emulatorLink[emulator2][emulator1] = bw  # 对称存储
+        # self.emulatorLink[emulator2][emulator1] = bw  # 对称存储
         
     def get_bw(self, emulator1: str, emulator2: str) -> int:
         """获取两个节点间剩余的带宽"""
@@ -139,11 +139,11 @@ class Controller(object):
         """添加两个节点间的带宽预分配信息"""
         if emulator1 not in self.emulatorLinkPreMap:
             self.emulatorLinkPreMap[emulator1] = {}
-        if emulator2 not in self.emulatorLinkPreMap:
-            self.emulatorLinkPreMap[emulator2] = {}
+        # if emulator2 not in self.emulatorLinkPreMap:
+        #     self.emulatorLinkPreMap[emulator2] = {}
             
         self.emulatorLinkPreMap[emulator1][emulator2] = bw
-        self.emulatorLinkPreMap[emulator2][emulator1] = bw
+        # self.emulatorLinkPreMap[emulator2][emulator1] = bw
     
     def iter_bandwidth(self):
         """遍历所有节点间的带宽
@@ -561,8 +561,6 @@ class Controller(object):
             print(f'创建日志时出错: {str(e)}')
             return False
 
-    # 好像大概初步改完了
-    #TODO：启动的过程要重新整理，tc传输完成之后再start
     def deploy_task(self, taskID: int, allocation: Dict, build_emulated_env: bool = False):
         """
         启动相应的容器
@@ -585,6 +583,7 @@ class Controller(object):
 
             added_emulators = set()
 
+            # 添加节点信息
             for node_name, node_info in allocation.items():
                 emu = self.emulator[node_info['emulator']]
                 if emu.nameW not in added_emulators:
@@ -597,7 +596,22 @@ class Controller(object):
                 en.mount_local_path ('../dml_file', '/home/qianguo/EdgeScheduler/Worker/dml_file')
                 en.mount_nfs (nfsApp, '/home/qianguo/EdgeScheduler/Worker/dml_app')
                 en.mount_nfs (nfsDataset, '/home/qianguo/EdgeScheduler/Worker/dataset')
-                    
+
+            # 添加链路信息
+            with open(os.path.join(dirName, 'task_links', str(taskID),'links.json'), 'r') as file:
+                            links_data = json.load(file)            
+            for node, connections in links_data.items():
+                node_name = str(taskID) + '_' + node
+                for dest in connections:
+                    dest_node = str(taskID) + '_' + dest['dest']
+                    bw = int(dest['bw'].replace('mbps', ''))
+                    node_emualtor = allocation[node_name]['emulator']
+                    dest_emulator = allocation[dest_node]['emulator']
+                    if self.get_bw(node_emualtor, dest_emulator) < bw:
+                        raise Exception(f"节点 {node_emualtor} 和 {dest_emulator} 之间的带宽不足: {self.get_bw(node_emualtor, dest_emulator)} < {bw}")
+                    else:
+                        self.add_emulator_bw_pre_map(node_emualtor,dest_emulator, bw)
+
             if build_emulated_env:
                 path_dockerfile = os.path.join(self.dirName, 'dml_app/'+ str(taskID) +'/Dockerfile')
                 path_req = os.path.join(self.dirName, 'dml_app/'+ str(taskID) +'/dml_req.txt')
