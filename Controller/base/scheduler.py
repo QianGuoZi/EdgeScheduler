@@ -2,7 +2,7 @@ import os
 from typing import Dict
 from flask import json
 
-from Controller.base.algorithm.GA import NodeMappingGA
+from .algorithm.GA import NodeMappingGA
 
 
 dirName = '/home/qianguo/Edge-Scheduler/Controller'
@@ -26,10 +26,11 @@ class Scheduler(object):
 
         for emulator in self.controller.emulator.values():
             physical_nodes.append({
-                'name': emulator.name,
+                'name': emulator.nameW,
                 'cpu': emulator.cpu - emulator.cpuPreMap,
                 'ram': emulator.ram - emulator.ramPreMap
             })
+            print(f"Emulator: {emulator.nameW}, CPU: {emulator.cpu - emulator.cpuPreMap}, RAM: {emulator.ram - emulator.ramPreMap}")
         
         for emu1, emu2, bw, used_bw in self.controller.iter_bandwidth():
             physical_links.append({
@@ -37,6 +38,7 @@ class Scheduler(object):
                 'dst': emu2,
                 'bw': bw-used_bw
             })
+            print(f"Link: {emu1} -> {emu2}, Available BW: {bw-used_bw} mbps")
 
         # 调度过程
         for node, connections in links_data.items():
@@ -46,14 +48,16 @@ class Scheduler(object):
                 'cpu': 5,
                 'ram': 2
             })
+            print(f"Virtual Node: {node_name}, CPU: 5, RAM: 2")
             for dest in connections:
-                dest_node = str(taskId) + '_' + connections['dest']
+                dest_node = str(taskId) + '_' + dest['dest']
                 bw = int(dest['bw'].replace('mbps', ''))  # 转换带宽值为整数
                 virtual_links.append({
                     'src': node_name,
                     'dst': dest_node,
                     'bw': bw
                 })
+            print(f"Virtual Links for {node_name}: {[f'{node_name} -> {dest['dest']}' for dest in connections]}")
             # print(f"Node: {node} ")
             # for e_name, e_obj in self.controller.emulator.items():
             #     # print(f"Emulator name: {e_name}, Emulator object: {e_obj}")

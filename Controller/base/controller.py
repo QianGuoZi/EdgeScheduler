@@ -131,9 +131,45 @@ class Controller(object):
     def get_bw(self, emulator1: str, emulator2: str) -> int:
         """获取两个节点间剩余的带宽"""
         try:
-            return self.emulatorLink[emulator1][emulator2]-self.emulatorLinkPreMap[emulator1][emulator2]
-        except KeyError:
-            return 0  # 或者抛出异常
+            # 检查 emulator1 是否存在
+            if emulator1 not in self.emulatorLink:
+                print(f"emulator1 {emulator1} 不在 emulatorLink 中")
+                return 0
+                
+            # 检查 emulator2 是否存在
+            if emulator2 not in self.emulatorLink[emulator1]:
+                print(f"emulator2 {emulator2} 不在 emulatorLink[{emulator1}] 中")
+                return 0
+                
+            # 检查预分配映射
+            if emulator1 not in self.emulatorLinkPreMap:
+                print(f"emulator1 {emulator1} 不在 emulatorLinkPreMap 中")
+                return self.emulatorLink[emulator1][emulator2]
+                
+            if emulator2 not in self.emulatorLinkPreMap[emulator1]:
+                print(f"emulator2 {emulator2} 不在 emulatorLinkPreMap[{emulator1}] 中")
+                return self.emulatorLink[emulator1][emulator2]
+                
+            # 计算剩余带宽
+            total = self.emulatorLink[emulator1][emulator2]
+            used = self.emulatorLinkPreMap[emulator1][emulator2]
+            remaining = total - used
+            
+            print(f"节点 {emulator1} -> {emulator2} 的带宽情况:")
+            print(f"总带宽: {total}")
+            print(f"已用带宽: {used}")
+            print(f"剩余带宽: {remaining}")
+            
+            return remaining
+            
+        except KeyError as e:
+            print(f"KeyError: {str(e)}")
+            print(f"emulatorLink: {self.emulatorLink}")
+            print(f"emulatorLinkPreMap: {self.emulatorLinkPreMap}")
+            return 0
+        except Exception as e:
+            print(f"计算带宽时出错: {str(e)}")
+            return 0
     
     def add_emulator_bw_pre_map(self, emulator1: str, emulator2: str, bw: int):
         """添加两个节点间的带宽预分配信息"""
@@ -195,6 +231,7 @@ class Controller(object):
                         try:
                             # 进行部署
                             success = self.deploy_task(task_id, allocation)
+                            # success = True
                             if success:
                                 # 部署成功，加入已部署队列
                                 self.deployed_tasks.put(task_id)
@@ -607,10 +644,11 @@ class Controller(object):
                     bw = int(dest['bw'].replace('mbps', ''))
                     node_emualtor = allocation[node_name]['emulator']
                     dest_emulator = allocation[dest_node]['emulator']
-                    if self.get_bw(node_emualtor, dest_emulator) < bw:
-                        raise Exception(f"节点 {node_emualtor} 和 {dest_emulator} 之间的带宽不足: {self.get_bw(node_emualtor, dest_emulator)} < {bw}")
-                    else:
-                        self.add_emulator_bw_pre_map(node_emualtor,dest_emulator, bw)
+                    if node_emualtor != dest_emulator:
+                        if self.get_bw(node_emualtor, dest_emulator) < bw:
+                            raise Exception(f"节点 {node_emualtor} 和 {dest_emulator} 之间的带宽不足: {self.get_bw(node_emualtor, dest_emulator)} < {bw}")
+                        else:
+                            self.add_emulator_bw_pre_map(node_emualtor,dest_emulator, bw)
 
             if build_emulated_env:
                 path_dockerfile = os.path.join(self.dirName, 'dml_app/'+ str(taskID) +'/Dockerfile')

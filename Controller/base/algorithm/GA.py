@@ -9,6 +9,10 @@ class NodeMappingGA:
         self.virtual_links = virtual_links  # 虚拟链路需求，包含带宽需求
         self.pop_size = pop_size  # 种群大小
         
+        # 添加节点名称到索引的映射
+        self.phys_name_to_idx = {node['name']: i for i, node in enumerate(physical_nodes)}
+        self.virt_name_to_idx = {node['name']: i for i, node in enumerate(virtual_nodes)}
+        
         self.population = self.init_population()
     
     def init_population(self):
@@ -52,35 +56,37 @@ class NodeMappingGA:
         ram_load = max(ram_loads)
         
         # 修改带宽负载计算
-        bw_load = 0
-        physical_link_loads = {}  # 记录每条物理链路的带宽负载
+        physical_link_loads = {}
         
         # 初始化物理链路负载
         for p_link in self.physical_links:
-            physical_link_loads[(p_link['src'], p_link['dst'])] = 0
-            physical_link_loads[(p_link['dst'], p_link['src'])] = 0  # 双向记录
+            src_idx = self.phys_name_to_idx[p_link['src']]
+            dst_idx = self.phys_name_to_idx[p_link['dst']]
+            physical_link_loads[(src_idx, dst_idx)] = 0
+            physical_link_loads[(dst_idx, src_idx)] = 0
         
         # 计算带宽负载
         for v_link in self.virtual_links:
-            src_phys = individual[v_link['src']]
-            dst_phys = individual[v_link['dst']]
+            src_idx = self.virt_name_to_idx[v_link['src']]
+            dst_idx = self.virt_name_to_idx[v_link['dst']]
+            src_phys = individual[src_idx]
+            dst_phys = individual[dst_idx]
             
-            # 如果源和目的节点映射到不同的物理节点，才需要消耗带宽
             if src_phys != dst_phys:
                 found = False
                 for p_link in self.physical_links:
-                    # 检查物理链路是否连接这两个节点
-                    if ((p_link['src'] == src_phys and p_link['dst'] == dst_phys) or 
-                        (p_link['src'] == dst_phys and p_link['dst'] == src_phys)):
-                        # 累加带宽负载
-                        physical_link_loads[(p_link['src'], p_link['dst'])] += v_link['bw'] / p_link['bw']
-                        physical_link_loads[(p_link['dst'], p_link['src'])] += v_link['bw'] / p_link['bw']
+                    p_src_idx = self.phys_name_to_idx[p_link['src']]
+                    p_dst_idx = self.phys_name_to_idx[p_link['dst']]
+                    
+                    if ((p_src_idx == src_phys and p_dst_idx == dst_phys) or 
+                        (p_src_idx == dst_phys and p_dst_idx == src_phys)):
+                        physical_link_loads[(p_src_idx, p_dst_idx)] += v_link['bw'] / p_link['bw']
+                        physical_link_loads[(p_dst_idx, p_src_idx)] += v_link['bw'] / p_link['bw']
                         found = True
                         break
                 if not found:
                     raise ValueError(f"找不到连接物理节点 {src_phys} 和 {dst_phys} 的物理链路")
         
-        # 获取所有物理链路中的最大负载作为总体带宽负载
         bw_load = max(physical_link_loads.values()) if physical_link_loads else 0
         
         return cpu_load, ram_load, bw_load
@@ -124,6 +130,7 @@ class NodeMappingGA:
 
 
 # 示例使用
+"""
 physical_nodes = [{'cpu': 32, 'ram': 64}, {'cpu': 32, 'ram': 64}, {'cpu': 32, 'ram': 64}]
 virtual_nodes = [{'cpu': 1, 'ram': 8}, {'cpu': 1, 'ram': 8}, {'cpu': 16, 'ram': 32}]
 # physical_links = {(0, 1): {'bw': 1000}, (1, 2): {'bw': 1000}, (0, 2): {'bw': 1000}}
@@ -134,3 +141,4 @@ virtual_links = [{'src': 0, 'dst': 1, 'bw': 500}, {'src': 0, 'dst': 2, 'bw': 500
 ga = NodeMappingGA(physical_nodes, virtual_nodes, physical_links, virtual_links)
 best_solution = ga.run()
 print("Best Solution:", best_solution)
+"""
