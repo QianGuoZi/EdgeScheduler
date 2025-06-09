@@ -1,0 +1,38 @@
+{
+  "emulator": {
+    "emulator-2": {
+      "ip": "222.201.187.52"
+    },
+    "emulator-1": {
+      "ip": "222.201.187.51"
+    }
+  },
+  "emulated_node": {
+    "2_p1": {
+      "ip": "222.201.187.52",
+      "port": "8006",
+      "emulator": "emulator-2"
+    },
+    "2_n1": {
+      "ip": "222.201.187.52",
+      "port": "8007",
+      "emulator": "emulator-2"
+    },
+    "2_n3": {
+      "ip": "222.201.187.52",
+      "port": "8009",
+      "emulator": "emulator-2"
+    },
+    "2_n2": {
+      "ip": "222.201.187.51",
+      "port": "8008",
+      "emulator": "emulator-1"
+    },
+    "2_n4": {
+      "ip": "222.201.187.51",
+      "port": "8010",
+      "emulator": "emulator-1"
+    }
+  },
+  "physical_node": {}
+}
