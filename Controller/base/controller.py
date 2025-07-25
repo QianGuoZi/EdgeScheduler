@@ -212,13 +212,34 @@ class Controller(object):
                     task_id = self.pending_tasks.get()
                     try:
                         # 调用scheduler进行调度
-                        print(f"调度任务: {task_id}")
-                        allocation = self.scheduler.resource_schedule(task_id)
-                        # 将任务和其分配结果放入已调度队列
-                        self.scheduled_tasks.put((task_id, allocation))
+                        print(f"开始调度任务: {task_id}")
+                        # 使用事件来等待调度完成
+                        scheduling_event = threading.Event()
+                        
+                        def schedule_task():
+                            nonlocal allocation
+                            try:
+                                allocation = self.scheduler.resource_schedule(task_id)
+                            finally:
+                                scheduling_event.set()
+                        
+                        allocation = None
+                        scheduling_thread = threading.Thread(target=schedule_task)
+                        scheduling_thread.start()
+                        
+                        # 等待调度完成或超时
+                        if scheduling_event.wait(timeout=30):  # 30秒超时
+                            if allocation:
+                                print(f"任务 {task_id} 调度成功")
+                                self.scheduled_tasks.put((task_id, allocation))
+                            else:
+                                print(f"任务 {task_id} 调度失败: 未获得分配方案")
+                        else:
+                            print(f"任务 {task_id} 调度超时")
+                            
                     except Exception as e:
                         print(f"调度任务 {task_id} 失败: {str(e)}")
-            time.sleep(1)
+        time.sleep(1)
 
     def _deploy_loop(self):
         """持续检查已调度队列并进行部署"""

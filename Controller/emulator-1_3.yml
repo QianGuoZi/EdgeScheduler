@@ -19,8 +19,8 @@ services:
     tty: true
     cap_add:
       - NET_ADMIN
-    cpuset: 0-4
-    mem_limit: 2048M
+    cpuset: 0-1
+    mem_limit: 5120M
     environment:
       - EDGE_TB_ID=11
       - NET_NODE_NAME=3_p1
@@ -45,8 +45,8 @@ services:
     tty: true
     cap_add:
       - NET_ADMIN
-    cpuset: 5-9
-    mem_limit: 2048M
+    cpuset: 2-3
+    mem_limit: 5120M
     environment:
       - EDGE_TB_ID=12
       - NET_NODE_NAME=3_n1
@@ -71,8 +71,8 @@ services:
     tty: true
     cap_add:
       - NET_ADMIN
-    cpuset: 10-14
-    mem_limit: 2048M
+    cpuset: 4-5
+    mem_limit: 5120M
     environment:
       - EDGE_TB_ID=14
       - NET_NODE_NAME=3_n3

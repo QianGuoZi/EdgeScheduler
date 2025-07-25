@@ -56,7 +56,7 @@ class NodeMappingRandom:
         
     def run(self):
         """随机分配算法主函数"""
-        max_attempts = 1000  # 最大尝试次数
+        max_attempts = 100  # 最大尝试次数
         best_allocation = None
         
         for attempt in range(max_attempts):
@@ -78,16 +78,5 @@ class NodeMappingRandom:
         if best_allocation is None:
             print("未找到可行解")
             return None
-            
-        # 转换结果为节点名称
-        result = {}
-        for v_idx, p_idx in enumerate(best_allocation):
-            v_node = self.virtual_nodes[v_idx]
-            p_node = self.physical_nodes[p_idx]
-            result[v_node['name']] = {
-                'name': p_node['name'],
-                'cpu': v_node['cpu'],
-                'ram': v_node['ram']
-            }
 
-        return result
+        return best_allocation

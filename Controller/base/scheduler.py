@@ -1,4 +1,5 @@
 import os
+import random  # 添加这行
 from typing import Dict
 from flask import json
 import pandas as pd
@@ -120,12 +121,17 @@ class Scheduler(object):
 
         for node, connections in links_data.items():
             node_name = str(taskId) + '_' + node
+            # 使用随机生成的 CPU 和 RAM 值
+            cpu_demand = random.randint(1, 5)
+            ram_demand = random.randint(1, 5)
             virtual_nodes.append({
                 'name': node_name,
-                'cpu': 5,
-                'ram': 2
+                # 'cpu': cpu_demand,
+                'cpu': 2,
+                # 'ram': ram_demand
+                'ram': 5
             })
-            print(f"Virtual Node: {node_name}, CPU: 5, RAM: 2")
+            print(f"Virtual Node: {node_name}, CPU: {cpu_demand}, RAM: {ram_demand}")
             for dest in connections:
                 dest_node = str(taskId) + '_' + dest['dest']
                 bw = int(dest['bw'].replace('mbps', ''))  # 转换带宽值为整数
@@ -141,10 +147,10 @@ class Scheduler(object):
         best_solution = ga.run()
         print("Best Solution:", best_solution)
 
-        rand = NodeMappingRandom(physical_nodes, virtual_nodes, physical_links, virtual_links)
-        best_solution = rand.run()
-        print("Best Solution (Random):", best_solution)
-        
+        # rand = NodeMappingRandom(physical_nodes, virtual_nodes, physical_links, virtual_links)
+        # best_solution = rand.run()
+        # print("Best Solution (Random):", best_solution)
+
         for i, node in enumerate(virtual_nodes):
             if best_solution[i] is not None:
                 allocation[node['name']] = {
@@ -155,6 +161,7 @@ class Scheduler(object):
                 self.node_count += 1
                 # 记录当前负载情况
                 self.record_load(self.node_count, allocation)
+
         
         # 生成负载历史图表
         self.plot_load_history()
