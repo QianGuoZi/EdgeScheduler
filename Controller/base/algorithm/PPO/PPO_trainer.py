@@ -4,12 +4,12 @@ import torch.nn.functional as F
 import numpy as np
 from torch.nn.utils import clip_grad_norm_
 
-from Controller.base.algorithm.PPO.PPO_buffer import PPOBuffer
-from Controller.base.algorithm.PPO.policy_network import PolicyNetwork
-from Controller.base.algorithm.PPO.virtual_edge_env import VirtualEdgeEnv
+from PPO_buffer import PPOBuffer
+from policy_network import PolicyNetwork
+from virtual_edge_env import VirtualEdgeEnv
 
 class PPOTrainer:
-    def __init__(self, config):
+    def __init__(self, config, env):
         self.config = config
         
         # 策略网络
@@ -17,11 +17,11 @@ class PPOTrainer:
         
         # 优化器
         self.optimizer = optim.Adam(self.policy.parameters(), 
-                                   lr=config['lr'], 
+                                   lr=float(config['lr']),
                                    eps=1e-5)
         
         # 环境
-        self.env = VirtualEdgeEnv(config)
+        self.env = env if env is not None else VirtualEdgeEnv(config)
         
         # 经验缓冲区
         self.buffer = PPOBuffer(config['buffer_size'])
@@ -41,8 +41,10 @@ class PPOTrainer:
     def collect_experience(self):
         """ 使用当前策略收集经验 """
         episode_rewards = []
-        
+        i = 0
         for _ in range(self.config['episodes_per_update']):
+            print(f"Collecting experience for episode {i + 1}...")
+            i += 1
             state = self.env.reset()
             done = False
             episode_reward = 0
@@ -57,7 +59,7 @@ class PPOTrainer:
                     action, log_prob, value = self.policy.act(
                         state, 
                         task_mask=masks['task'],
-                        path_mask=masks['path'],
+                        # path_mask=masks['path'],
                         exploration=True
                     )
                 
@@ -72,7 +74,7 @@ class PPOTrainer:
                 episode_length += 1
                 
                 # 移动到下一个状态
-                state = next_state
+                state = next_state if not done else None
             
             episode_rewards.append(episode_reward)
             self.episode_rewards.append(episode_reward)
@@ -102,7 +104,7 @@ class PPOTrainer:
         # 动作转换为张量
         task_actions = torch.tensor([a['task'] for a in actions], dtype=torch.long)
         bw_actions = torch.tensor([a['bw'] for a in actions], dtype=torch.float32)
-        path_actions = torch.tensor([a['path'] for a in actions], dtype=torch.long)
+        # path_actions = torch.tensor([a['path'] for a in actions], dtype=torch.long)
         
         # 初始化损失记录
         total_policy_loss = 0
@@ -125,10 +127,10 @@ class PPOTrainer:
                 batch_advantages = advantages[idx]
                 batch_task_actions = task_actions[idx]
                 batch_bw_actions = bw_actions[idx]
-                batch_path_actions = path_actions[idx]
+                # batch_path_actions = path_actions[idx]
                 
                 # 计算新策略的输出
-                task_logits, bw_mean, bw_std, path_score, values = self.policy(
+                task_logits, bw_mean, bw_std, values = self.policy(
                     batch_states
                 )
                 
@@ -142,14 +144,14 @@ class PPOTrainer:
                 bw_log_probs = bw_dist.log_prob(batch_bw_actions)
                 
                 # 路径选择概率
-                path_dist = torch.distributions.Categorical(logits=path_score)
-                path_log_probs = path_dist.log_prob(batch_path_actions)
+                # path_dist = torch.distributions.Categorical(logits=path_score)
+                # path_log_probs = path_dist.log_prob(batch_path_actions)
                 
                 # 组合对数概率（加权）
                 new_log_probs = (
-                    self.config.get('task_weight', 0.5) * task_log_probs +
-                    self.config.get('bw_weight', 0.3) * bw_log_probs +
-                    self.config.get('path_weight', 0.2) * path_log_probs
+                    self.config.get('task_weight', 0.6) * task_log_probs +
+                    self.config.get('bw_weight', 0.4) * bw_log_probs
+                    # self.config.get('path_weight', 0.2) * path_log_probs
                 )
                 
                 # 计算概率比

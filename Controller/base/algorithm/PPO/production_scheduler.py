@@ -1,69 +1,68 @@
 import torch
-from Controller.base.algorithm.PPO.virtual_edge_env import VirtualEdgeEnv
-
+# from production_env import ProductionEdgeEnv
+from policy_network import PolicyNetwork
 
 class PPOScheduler:
-    def __init__(self, mode='train', model_path=None):
-        """
-        调度器主入口
-        :param mode: 'train' 或 'production'
-        :param model_path: 预训练模型路径
-        """
-        self.mode = mode
-        self.model = self.load_model(model_path) if model_path else None
-        self.env = self.create_environment()
+    def __init__(self, config, model_path):
+        self.config = config
+        # self.env = ProductionEdgeEnv(config)
+        self.model = self.load_model(model_path)
         
-    def create_environment(self):
-        if self.mode == 'train':
-            return VirtualEdgeEnv(config)
-        else:
-            return ProductionEdgeEnv(config)
-    
     def load_model(self, path):
-        # 加载预训练模型
-        return torch.load(path)
+        """加载训练好的模型"""
+        model = PolicyNetwork(self.config)
+        model.load_state_dict(torch.load(path))
+        model.eval()
+        return model
     
     def schedule(self, task_request):
-        """ 核心调度方法 """
+        """核心调度方法"""
         # 1. 将请求转换为状态
-        state = self.env.request_to_state(task_request)
+        state = self.env.receive_request(task_request)
         
-        # 2. 使用PPO模型生成决策
-        if self.mode == 'train':
-            action, log_prob = self.model.act(state, exploration=True)
-        else:
-            action, _ = self.model.act(state, exploration=False)
+        # 2. 生成决策（无探索）
+        with torch.no_grad():
+            action, _, _ = self.model.act(state, exploration=False)
         
-        # 3. 将动作转换为调度方案
+        # 3. 转换为调度方案
         schedule_plan = self.action_to_schedule(action, task_request)
         return schedule_plan
     
     def action_to_schedule(self, action, request):
-        """ 将PPO输出转换为调度方案 """
+        """将动作转换为调度方案"""
         plan = {
             "task_assignments": {},
             "bandwidth_allocations": {},
             "path_mappings": {}
         }
         
-        # 处理任务节点映射
-        for i, task_id in enumerate(request['task_nodes']):
-            phys_node_id = action['task_assignment'][i]
-            plan["task_assignments"][task_id] = phys_node_id
+        # 任务节点映射
+        for i, task in enumerate(request['task_nodes']):
+            phys_node_idx = action['task'][i].item()
+            phys_node_id = self.env.resource_pool['nodes'][phys_node_idx]['id']
+            plan["task_assignments"][task['id']] = phys_node_id
         
-        # 处理带宽分配和路径映射
-        for j, link_id in enumerate(request['task_links']):
-            bw = action['bandwidth_allocation'][j]
-            path = self.find_optimal_path(
-                request['task_links'][link_id],
-                action['path_selection'][j]
+        # 带宽分配
+        for j, link in enumerate(request['task_links']):
+            # 缩放带宽到实际范围
+            min_bw = link['min_bw']
+            max_bw = link['max_bw']
+            scaled_bw = min_bw + action['bw'][j].item() * (max_bw - min_bw)
+            plan["bandwidth_allocations"][link['id']] = scaled_bw
+            
+            # 路径映射（简化为直接物理链路）
+            src_task = next(t for t in request['task_nodes'] if t['id'] == link['source'])
+            dst_task = next(t for t in request['task_nodes'] if t['id'] == link['target'])
+            src_node = plan["task_assignments"][src_task['id']]
+            dst_node = plan["task_assignments"][dst_task['id']]
+            
+            # 查找直接物理链路
+            direct_link = next(
+                (l for l in self.env.resource_pool['links'] 
+                 if (l['source'] == src_node and l['target'] == dst_node) or
+                    (l['source'] == dst_node and l['target'] == src_node)),
+                None
             )
-            plan["bandwidth_allocations"][link_id] = bw
-            plan["path_mappings"][link_id] = path
+            plan["path_mappings"][link['id']] = direct_link['id'] if direct_link else None
         
         return plan
-    
-    def find_optimal_path(self, link_info, path_hint):
-        """ 基于路径提示查找实际物理路径 """
-        # 实现路径查找算法（如Dijkstra）
-        # ...

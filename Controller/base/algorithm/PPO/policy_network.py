@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical, Normal
 
-from Controller.base.algorithm.PPO.gnn_encoder import GNNEncoder
+from gnn_encoder import GNNEncoder
 
 class PolicyNetwork(nn.Module):
     def __init__(self, config):
@@ -40,13 +40,13 @@ class PolicyNetwork(nn.Module):
             nn.Linear(256, 2)  # 输出均值和log(std)
         )
         
-        # 路径选择头（动态处理路径数量）
-        self.path_head = nn.Sequential(
-            nn.Linear(2 * config['gnn_hidden_dim'], 256),
-            nn.ReLU(),
-            nn.LayerNorm(256),
-            nn.Linear(256, 1)  # 输出单个值，用于路径评分
-        )
+        # # 路径选择头（动态处理路径数量）
+        # self.path_head = nn.Sequential(
+        #     nn.Linear(2 * config['gnn_hidden_dim'], 256),
+        #     nn.ReLU(),
+        #     nn.LayerNorm(256),
+        #     nn.Linear(256, 1)  # 输出单个值，用于路径评分
+        # )
         
         # 价值头
         self.value_head = nn.Sequential(
@@ -78,7 +78,7 @@ class PolicyNetwork(nn.Module):
         # 输出头
         task_logits = self.task_head(joint_feat)  # [batch_size, num_phys_nodes]
         bw_params = self.bw_head(joint_feat)  # [batch_size, 2]
-        path_score = self.path_head(joint_feat)  # [batch_size, 1]
+        # path_score = self.path_head(joint_feat)  # [batch_size, 1]
         value = self.value_head(joint_feat)  # [batch_size, 1]
         
         # 分离带宽均值和标准差
@@ -86,13 +86,14 @@ class PolicyNetwork(nn.Module):
         bw_log_std = bw_params[:, 1]
         bw_std = torch.exp(bw_log_std) + 1e-6  # 确保正值
         
-        return task_logits, bw_mean, bw_std, path_score, value
+        return task_logits, bw_mean, bw_std, value
     
     def act(self, state, task_mask=None, path_mask=None, exploration=True):
         task_data, phys_data = state
         
         # 获取网络输出
-        task_logits, bw_mean, bw_std, path_score, value = self(task_data, phys_data)
+        # task_logits, bw_mean, bw_std, path_score, value = self(task_data, phys_data)
+        task_logits, bw_mean, bw_std, value = self(task_data, phys_data)
         
         # 应用任务分配掩码
         if task_mask is not None:
@@ -111,29 +112,29 @@ class PolicyNetwork(nn.Module):
         bw_action = bw_dist.sample()
         bw_log_prob = bw_dist.log_prob(bw_action)
         
-        # 路径选择（带掩码）
-        if path_mask is not None:
-            # 应用路径掩码
-            path_score = path_score.masked_fill(~path_mask.bool(), -1e9)
+        # # 路径选择（带掩码）
+        # if path_mask is not None:
+        #     # 应用路径掩码
+        #     path_score = path_score.masked_fill(~path_mask.bool(), -1e9)
         
-        path_dist = Categorical(logits=path_score)
-        if exploration:
-            path_action = path_dist.sample()
-        else:
-            path_action = torch.argmax(path_score, dim=-1)
-        path_log_prob = path_dist.log_prob(path_action)
+        # path_dist = Categorical(logits=path_score)
+        # if exploration:
+        #     path_action = path_dist.sample()
+        # else:
+        #     path_action = torch.argmax(path_score, dim=-1)
+        # path_log_prob = path_dist.log_prob(path_action)
         
         action = {
             'task': task_action,
             'bw': bw_action,
-            'path': path_action
+            # 'path': path_action
         }
         
         # 加权对数概率（考虑不同动作空间）
         log_prob = (
-            0.5 * task_log_prob +
-            0.3 * bw_log_prob +
-            0.2 * path_log_prob
+            0.6 * task_log_prob +
+            0.4 * bw_log_prob 
+            # 0.2 * path_log_prob
         )
         
         return action, log_prob, value
