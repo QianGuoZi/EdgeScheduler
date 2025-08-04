@@ -47,9 +47,9 @@ def demo_basic_scheduling():
     
     print("物理网络拓扑:")
     print(f"  节点数量: {topology.num_nodes}")
-    print(f"  链路数量: {len(topology.links) // 2}")
-    print(f"  总CPU资源: {sum(topology.node_resources[i]['cpu'] for i in range(5))}")
-    print(f"  总内存资源: {sum(topology.node_resources[i]['memory'] for i in range(5))}")
+    print(f"  链路数量: {len(topology.physical_links) // 2}")
+    print(f"  总CPU资源: {sum(topology.pysical_node_resources[i]['cpu'] for i in range(5))}")
+    print(f"  总内存资源: {sum(topology.pysical_node_resources[i]['memory'] for i in range(5))}")
     
     print("\n虚拟工作需求:")
     print(f"  虚拟节点数量: {virtual_work.num_nodes}")
@@ -89,8 +89,8 @@ def demo_basic_scheduling():
     print("\n资源利用率:")
     for i in range(5):
         available = topology.get_available_resources(i)
-        total_cpu = topology.node_resources[i]['cpu']
-        total_memory = topology.node_resources[i]['memory']
+        total_cpu = topology.pysical_node_resources[i]['cpu']
+        total_memory = topology.pysical_node_resources[i]['memory']
         cpu_util = (total_cpu - available['cpu']) / total_cpu * 100
         memory_util = (total_memory - available['memory']) / total_memory * 100
         print(f"  物理节点{i}: CPU利用率 {cpu_util:.1f}%, 内存利用率 {memory_util:.1f}%")
@@ -284,8 +284,8 @@ def demo_intelligent_scheduling():
             physical_features = []
             for i in range(topology.num_nodes):
                 available = topology.get_available_resources(i)
-                total_cpu = topology.node_resources[i]['cpu']
-                total_memory = topology.node_resources[i]['memory']
+                total_cpu = topology.pysical_node_resources[i]['cpu']
+                total_memory = topology.pysical_node_resources[i]['memory']
                 features = [
                     available['cpu'] / total_cpu,
                     available['memory'] / total_memory

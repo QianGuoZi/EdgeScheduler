@@ -106,6 +106,7 @@ class TwoStageNetworkSchedulerEnvironment:
             
             # 设置链路（包含已使用带宽） 对称链路
             self.network_topology.add_link(src, dst, bandwidth, bandwidth, used_bandwidth, used_bandwidth)
+            # print(f"add physical link: src: {src}, dst: {dst}, bandwidth: {bandwidth}, used_bandwidth: {used_bandwidth}")
         
         # 创建虚拟工作对象
         num_virtual_nodes = self.virtual_work['num_nodes']
@@ -130,6 +131,8 @@ class TwoStageNetworkSchedulerEnvironment:
         
         # 创建网络调度器
         self.network_scheduler = NetworkScheduler(self.network_topology)
+        self.network_scheduler.add_virtual_work(self.virtual_work_obj, work_id="work_1")
+
     
     def reset(self, physical_state=None, virtual_work=None):
         """
@@ -183,9 +186,14 @@ class TwoStageNetworkSchedulerEnvironment:
         physical_edge_features = []
         for edge in physical_edges.T:
             bandwidth = np.random.randint(*self.physical_bandwidth_range)
-            bandwidth_usage = np.random.uniform(0.1, 0.7)
+            bandwidth_usage = np.random.uniform(0.1, 0.8)
             physical_edge_features.append([bandwidth, bandwidth_usage])
         
+        # print(f"num_physical_nodes: {self.num_physical_nodes}")
+        # print(f"physical_features: {physical_features}")
+        # print(f"physical_edges: {physical_edges}")
+        # print(f"physical_edge_features: {physical_edge_features}")
+
         return {
             'features': torch.tensor(physical_features, dtype=torch.float32),
             'edges': physical_edges,
@@ -216,6 +224,11 @@ class TwoStageNetworkSchedulerEnvironment:
             max_bandwidth = np.random.randint(min_bandwidth, self.virtual_bandwidth_range[1] + 1)
             virtual_edge_features.append([min_bandwidth, max_bandwidth])
         
+        # print(f"num_virtual_nodes: {num_virtual_nodes}")
+        # print(f"virtual_features: {virtual_features}")
+        # print(f"virtual_edges: {virtual_edges}")
+        # print(f"virtual_edge_features: {virtual_edge_features}")
+
         return {
             'features': torch.tensor(virtual_features, dtype=torch.float32),
             'edges': virtual_edges,
@@ -224,7 +237,7 @@ class TwoStageNetworkSchedulerEnvironment:
         }
     
     def _get_physical_edges(self):
-        """获取物理网络边（部分连接）"""
+        """获取物理网络边"""
         edges = []
         # 使用部分连接
         for i in range(self.num_physical_nodes):
@@ -253,7 +266,8 @@ class TwoStageNetworkSchedulerEnvironment:
             'physical_edge_attr': self.physical_state['edge_features'],
             'virtual_features': self.virtual_work['features'],
             'virtual_edge_index': self.virtual_work['edges'],
-            'virtual_edge_attr': self.virtual_work['edge_features']
+            'virtual_edge_attr': self.virtual_work['edge_features'],
+            'bandwidth_mapping': self.bandwidth_mapping  # 添加带宽映射到状态中
         }
     
     def step(self, mapping_action, bandwidth_action):
@@ -305,7 +319,11 @@ class TwoStageNetworkSchedulerEnvironment:
                 'bandwidth_result': bandwidth_action,
                 'is_valid': True
             }
-        
+        print(f"reward: {reward}")
+        print(f"mapping_action: {mapping_action}")
+        print(f"bandwidth_action: {bandwidth_action}")
+        print(f"info: {info}")
+
         # 环境结束
         done = self.current_step >= self.max_steps
         
@@ -346,64 +364,64 @@ class TwoStageNetworkSchedulerEnvironment:
         if self.use_network_scheduler:
             return self._validate_actions_with_network_scheduler(mapping_action, bandwidth_action)
         
-        # 原有的验证逻辑
-        # 检查资源约束
-        physical_features = self.physical_state['features'].numpy()
-        virtual_features = self.virtual_work['features'].numpy()
+        # # 原有的验证逻辑
+        # # 检查资源约束
+        # physical_features = self.physical_state['features'].numpy()
+        # virtual_features = self.virtual_work['features'].numpy()
         
-        for i, physical_node_idx in enumerate(mapping_action):
-            # CPU约束
-            required_cpu = virtual_features[i][0]
-            available_cpu = physical_features[physical_node_idx][0] * (1 - physical_features[physical_node_idx][2])
+        # for i, physical_node_idx in enumerate(mapping_action):
+        #     # CPU约束
+        #     required_cpu = virtual_features[i][0]
+        #     available_cpu = physical_features[physical_node_idx][0] * (1 - physical_features[physical_node_idx][2])
             
-            if required_cpu > available_cpu:
-                constraint_violations.append(f"节点{i}的CPU需求({required_cpu})超过物理节点{physical_node_idx}的可用CPU({available_cpu:.1f})")
+        #     if required_cpu > available_cpu:
+        #         constraint_violations.append(f"节点{i}的CPU需求({required_cpu})超过物理节点{physical_node_idx}的可用CPU({available_cpu:.1f})")
             
-            # 内存约束
-            required_memory = virtual_features[i][1]
-            available_memory = physical_features[physical_node_idx][1] * (1 - physical_features[physical_node_idx][3])
+        #     # 内存约束
+        #     required_memory = virtual_features[i][1]
+        #     available_memory = physical_features[physical_node_idx][1] * (1 - physical_features[physical_node_idx][3])
             
-            if required_memory > available_memory:
-                constraint_violations.append(f"节点{i}的内存需求({required_memory})超过物理节点{physical_node_idx}的可用内存({available_memory:.1f})")
+        #     if required_memory > available_memory:
+        #         constraint_violations.append(f"节点{i}的内存需求({required_memory})超过物理节点{physical_node_idx}的可用内存({available_memory:.1f})")
         
-        # 检查带宽约束
-        if len(bandwidth_action) > 0:
-            virtual_edges = self.virtual_work['edges'].numpy()
-            virtual_edge_features = self.virtual_work['edge_features'].numpy()
-            physical_edges = self.physical_state['edges'].numpy()
-            physical_edge_features = self.physical_state['edge_features'].numpy()
+        # # 检查带宽约束
+        # if len(bandwidth_action) > 0:
+        #     virtual_edges = self.virtual_work['edges'].numpy()
+        #     virtual_edge_features = self.virtual_work['edge_features'].numpy()
+        #     physical_edges = self.physical_state['edges'].numpy()
+        #     physical_edge_features = self.physical_state['edge_features'].numpy()
             
-            for i, (src, dst) in enumerate(virtual_edges.T):
-                if i >= len(bandwidth_action):
-                    break
+        #     for i, (src, dst) in enumerate(virtual_edges.T):
+        #         if i >= len(bandwidth_action):
+        #             break
                 
-                # 获取分配的带宽
-                allocated_bandwidth = self.bandwidth_mapping[bandwidth_action[i]]
+        #         # 获取分配的带宽
+        #         allocated_bandwidth = self.bandwidth_mapping[bandwidth_action[i]]
                 
-                # 检查带宽需求约束
-                min_required = virtual_edge_features[i][0]
-                max_required = virtual_edge_features[i][1]
+        #         # 检查带宽需求约束
+        #         min_required = virtual_edge_features[i][0]
+        #         max_required = virtual_edge_features[i][1]
                 
-                if allocated_bandwidth < min_required:
-                    constraint_violations.append(f"链路({src},{dst})的带宽分配({allocated_bandwidth})低于最小需求({min_required})")
+        #         if allocated_bandwidth < min_required:
+        #             constraint_violations.append(f"链路({src},{dst})的带宽分配({allocated_bandwidth})低于最小需求({min_required})")
                 
-                if allocated_bandwidth > max_required:
-                    constraint_violations.append(f"链路({src},{dst})的带宽分配({allocated_bandwidth})超过最大需求({max_required})")
+        #         if allocated_bandwidth > max_required:
+        #             constraint_violations.append(f"链路({src},{dst})的带宽分配({allocated_bandwidth})超过最大需求({max_required})")
                 
-                # 检查物理路径带宽约束（简化版本）
-                src_physical = mapping_action[src]
-                dst_physical = mapping_action[dst]
+        #         # 检查物理路径带宽约束（简化版本）
+        #         src_physical = mapping_action[src]
+        #         dst_physical = mapping_action[dst]
                 
-                if src_physical != dst_physical:
-                    # 需要检查物理路径上的带宽
-                    # 这里简化处理，假设直接连接
-                    for j, (p_src, p_dst) in enumerate(physical_edges.T):
-                        if (p_src == src_physical and p_dst == dst_physical) or \
-                           (p_src == dst_physical and p_dst == src_physical):
-                            available_bandwidth = physical_edge_features[j][0] * (1 - physical_edge_features[j][1])
-                            if allocated_bandwidth > available_bandwidth:
-                                constraint_violations.append(f"物理链路({p_src},{p_dst})的可用带宽({available_bandwidth})不足以支持分配的带宽({allocated_bandwidth})")
-                            break
+        #         if src_physical != dst_physical:
+        #             # 需要检查物理路径上的带宽
+        #             # 这里简化处理，假设直接连接
+        #             for j, (p_src, p_dst) in enumerate(physical_edges.T):
+        #                 if (p_src == src_physical and p_dst == dst_physical) or \
+        #                    (p_src == dst_physical and p_dst == src_physical):
+        #                     available_bandwidth = physical_edge_features[j][0] * (1 - physical_edge_features[j][1])
+        #                     if allocated_bandwidth > available_bandwidth:
+        #                         constraint_violations.append(f"物理链路({p_src},{p_dst})的可用带宽({available_bandwidth})不足以支持分配的带宽({allocated_bandwidth})")
+        #                     break
         
         return len(constraint_violations) == 0, constraint_violations
     
@@ -430,14 +448,18 @@ class TwoStageNetworkSchedulerEnvironment:
         # 检查带宽约束
         virtual_edges = self.virtual_work['edges'].numpy()
         for i, (src, dst) in enumerate(virtual_edges.T):
+            print(f"src: {src}, dst: {dst}")
             if i < len(bandwidth_action):
                 allocated_bandwidth = self.bandwidth_mapping[bandwidth_action[i]]
-                
+                print(f"allocated_bandwidth: {allocated_bandwidth}")
+               
                 # 检查带宽需求约束
                 virtual_edge_features = self.virtual_work['edge_features'].numpy()
                 min_required = virtual_edge_features[i][0]
                 max_required = virtual_edge_features[i][1]
-                
+                print(f"min_required: {min_required}")
+                print(f"max_required: {max_required}")
+
                 if allocated_bandwidth < min_required:
                     constraint_violations.append(f"链路({src},{dst})的带宽分配({allocated_bandwidth})低于最小需求({min_required})")
                 
@@ -451,6 +473,7 @@ class TwoStageNetworkSchedulerEnvironment:
                 if src_physical != dst_physical:
                     # 获取最短路径
                     path = self.network_topology.get_shortest_path(src_physical, dst_physical)
+                    print(f"path: {path}")
                     if not path:
                         constraint_violations.append(f"虚拟链路({src},{dst})映射的物理节点({src_physical},{dst_physical})之间无路径")
                     elif not self.network_topology.check_bandwidth_availability(path, allocated_bandwidth):

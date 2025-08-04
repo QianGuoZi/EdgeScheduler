@@ -266,8 +266,8 @@ def test_integration():
         physical_features = []
         for i in range(5):
             available = topology.get_available_resources(i)
-            total_cpu = topology.node_resources[i]['cpu']
-            total_memory = topology.node_resources[i]['memory']
+            total_cpu = topology.pysical_node_resources[i]['cpu']
+            total_memory = topology.pysical_node_resources[i]['memory']
             features = [
                 available['cpu'] / total_cpu,
                 available['memory'] / total_memory

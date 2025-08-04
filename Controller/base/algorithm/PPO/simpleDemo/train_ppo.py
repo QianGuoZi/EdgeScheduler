@@ -228,8 +228,8 @@ class PPOTrainer:
         physical_features = []
         for i in range(self.topology.num_nodes):
             available = self.topology.get_available_resources(i)
-            total_cpu = self.topology.node_resources[i]['cpu']
-            total_memory = self.topology.node_resources[i]['memory']
+            total_cpu = self.topology.pysical_node_resources[i]['cpu']
+            total_memory = self.topology.pysical_node_resources[i]['memory']
             
             features = [
                 available['cpu'] / total_cpu,  # CPU利用率
@@ -265,7 +265,7 @@ class PPOTrainer:
     def _get_physical_edges(self) -> torch.Tensor:
         """获取物理网络边"""
         edges = []
-        for link_key in self.topology.links.keys():
+        for link_key in self.topology.physical_links.keys():
             edges.append(list(link_key))
         
         if not edges:

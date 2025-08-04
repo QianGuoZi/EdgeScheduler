@@ -61,8 +61,8 @@ def test_simple_training():
             physical_features = []
             for i in range(topology.num_nodes):
                 available = topology.get_available_resources(i)
-                total_cpu = topology.node_resources[i]['cpu']
-                total_memory = topology.node_resources[i]['memory']
+                total_cpu = topology.pysical_node_resources[i]['cpu']
+                total_memory = topology.pysical_node_resources[i]['memory']
                 features = [
                     available['cpu'] / total_cpu,
                     available['memory'] / total_memory
@@ -236,8 +236,8 @@ def test_simple_training():
         physical_features = []
         for i in range(test_topology.num_nodes):
             available = test_topology.get_available_resources(i)
-            total_cpu = test_topology.node_resources[i]['cpu']
-            total_memory = test_topology.node_resources[i]['memory']
+            total_cpu = test_topology.pysical_node_resources[i]['cpu']
+            total_memory = test_topology.pysical_node_resources[i]['memory']
             features = [
                 available['cpu'] / total_cpu,
                 available['memory'] / total_memory

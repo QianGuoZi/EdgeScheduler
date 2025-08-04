@@ -39,7 +39,7 @@ def test_resource_preservation():
     if env.network_topology:
         for i in range(env.num_physical_nodes):
             available = env.network_topology.get_available_resources(i)
-            resources = env.network_topology.node_resources[i]
+            resources = env.network_topology.pysical_node_resources[i]
             print(f"   节点{i}: 可用CPU={available['cpu']:.1f}, 可用内存={available['memory']:.1f}")
             print(f"          已用CPU={resources['used_cpu']:.1f}, 已用内存={resources['used_memory']:.1f}")
     
@@ -65,7 +65,7 @@ def test_resource_preservation():
     if env.network_topology:
         for i in range(env.num_physical_nodes):
             available = env.network_topology.get_available_resources(i)
-            resources = env.network_topology.node_resources[i]
+            resources = env.network_topology.pysical_node_resources[i]
             print(f"   节点{i}: 可用CPU={available['cpu']:.1f}, 可用内存={available['memory']:.1f}")
             print(f"          已用CPU={resources['used_cpu']:.1f}, 已用内存={resources['used_memory']:.1f}")
     
@@ -84,7 +84,7 @@ def test_resource_preservation():
     if env.network_topology:
         for i in range(env.num_physical_nodes):
             available = env.network_topology.get_available_resources(i)
-            resources = env.network_topology.node_resources[i]
+            resources = env.network_topology.pysical_node_resources[i]
             print(f"   节点{i}: 可用CPU={available['cpu']:.1f}, 可用内存={available['memory']:.1f}")
             print(f"          已用CPU={resources['used_cpu']:.1f}, 已用内存={resources['used_memory']:.1f}")
     
@@ -161,7 +161,7 @@ def test_multiple_scheduling_attempts():
             print(f"   资源状态:")
             for i in range(env.num_physical_nodes):
                 available = env.network_topology.get_available_resources(i)
-                resources = env.network_topology.node_resources[i]
+                resources = env.network_topology.pysical_node_resources[i]
                 print(f"     节点{i}: 可用CPU={available['cpu']:.1f}, 已用CPU={resources['used_cpu']:.1f}")
     
     print(f"\n✅ 多次调度尝试测试完成！")

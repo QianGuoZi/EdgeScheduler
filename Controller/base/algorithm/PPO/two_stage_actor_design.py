@@ -12,6 +12,7 @@ import networkx as nx
 from collections import deque
 import random
 import math
+from constraint_manager import ConstraintManager
 
 class GraphEncoder(nn.Module):
     """图神经网络编码器，用于编码物理节点和虚拟工作节点"""
@@ -366,6 +367,9 @@ class TwoStagePPOAgent:
         self.value_loss_coef = value_loss_coef
         self.entropy_coef = entropy_coef
         
+        # 约束管理器
+        self.constraint_manager = ConstraintManager(bandwidth_levels=bandwidth_levels)
+        
         # 经验缓冲区
         self.states = []
         self.mapping_actions = []
@@ -375,7 +379,7 @@ class TwoStagePPOAgent:
         self.mapping_log_probs = []
         self.bandwidth_log_probs = []
         self.dones = []
-        
+    
     def select_actions(self, state):
         """
         选择映射和带宽分配动作
@@ -398,14 +402,32 @@ class TwoStagePPOAgent:
         virtual_edge_index = state['virtual_edge_index'].to(self.device)
         virtual_edge_attr = state['virtual_edge_attr'].to(self.device)
         
+        # 生成节点映射约束
+        node_constraints = self.constraint_manager.generate_node_mapping_constraints(
+            physical_features, virtual_features, physical_edge_index, virtual_edge_index
+        )
+        
         # 第一阶段：映射Actor
         mapping_logits, constraint_scores, _ = self.mapping_actor(
             physical_features, physical_edge_index, physical_edge_attr,
             virtual_features, virtual_edge_index, virtual_edge_attr
         )
         
-        # 应用约束
+        # 应用约束管理器生成的约束
+        mapping_logits = self.constraint_manager.apply_node_mapping_constraints(
+            mapping_logits, node_constraints, temperature=1.0
+        )
+        
+        # 应用原有的约束分数（如果有的话）
         mapping_logits = mapping_logits + torch.log(constraint_scores + 1e-8)
+        
+        # 检查数值稳定性
+        if torch.isnan(mapping_logits).any() or torch.isinf(mapping_logits).any():
+            print("警告：mapping_logits 包含 NaN 或 Inf 值，使用均匀分布")
+            # 保持梯度信息，只替换无效值
+            mapping_logits = torch.where(torch.isnan(mapping_logits) | torch.isinf(mapping_logits), 
+                                       torch.zeros_like(mapping_logits), mapping_logits)
+        
         mapping_probs = F.softmax(mapping_logits, dim=-1)
         
         # 采样映射动作
@@ -421,8 +443,30 @@ class TwoStagePPOAgent:
         )
         
         if bandwidth_logits.size(0) > 0:
-            # 应用带宽约束
+            # 生成带宽约束
+            # 从环境状态中获取bandwidth_mapping
+            bandwidth_mapping = state.get('bandwidth_mapping', {i: 10 + i * 20 for i in range(self.bandwidth_levels)})
+            # 传递期望的链路数量以匹配bandwidth_logits的形状
+            expected_num_links = bandwidth_logits.size(0)
+            bandwidth_constraints = self.constraint_manager.generate_bandwidth_constraints(
+                virtual_edge_attr, bandwidth_mapping, expected_num_links
+            )
+            
+            # 应用约束管理器生成的带宽约束
+            bandwidth_logits = self.constraint_manager.apply_bandwidth_constraints(
+                bandwidth_logits, bandwidth_constraints, temperature=1.0
+            )
+            
+            # 应用原有的带宽约束分数（如果有的话）
             bandwidth_logits = bandwidth_logits + torch.log(bandwidth_constraint_scores + 1e-8)
+            
+            # 检查数值稳定性
+            if torch.isnan(bandwidth_logits).any() or torch.isinf(bandwidth_logits).any():
+                print("警告：bandwidth_logits 包含 NaN 或 Inf 值，使用均匀分布")
+                # 保持梯度信息，只替换无效值
+                bandwidth_logits = torch.where(torch.isnan(bandwidth_logits) | torch.isinf(bandwidth_logits), 
+                                             torch.zeros_like(bandwidth_logits), bandwidth_logits)
+            
             bandwidth_probs = F.softmax(bandwidth_logits, dim=-1)
             
             # 采样带宽动作
@@ -511,12 +555,31 @@ class TwoStagePPOAgent:
             virtual_edge_index = state['virtual_edge_index'].to(self.device)
             virtual_edge_attr = state['virtual_edge_attr'].to(self.device)
             
+            # 生成节点映射约束
+            node_constraints = self.constraint_manager.generate_node_mapping_constraints(
+                physical_features, virtual_features, physical_edge_index, virtual_edge_index
+            )
+            
             mapping_logits, constraint_scores, _ = self.mapping_actor(
                 physical_features, physical_edge_index, physical_edge_attr,
                 virtual_features, virtual_edge_index, virtual_edge_attr
             )
             
+            # 应用约束管理器生成的约束
+            mapping_logits = self.constraint_manager.apply_node_mapping_constraints(
+                mapping_logits, node_constraints, temperature=1.0
+            )
+            
+            # 应用原有的约束分数（如果有的话）
             mapping_logits = mapping_logits + torch.log(constraint_scores + 1e-8)
+            
+            # 检查数值稳定性
+            if torch.isnan(mapping_logits).any() or torch.isinf(mapping_logits).any():
+                print("警告：更新阶段 mapping_logits 包含 NaN 或 Inf 值，使用均匀分布")
+                # 保持梯度信息，只替换无效值
+                mapping_logits = torch.where(torch.isnan(mapping_logits) | torch.isinf(mapping_logits), 
+                                           torch.zeros_like(mapping_logits), mapping_logits)
+            
             mapping_probs = F.softmax(mapping_logits, dim=-1)
             
             mapping_dist = torch.distributions.Categorical(mapping_probs)
@@ -589,7 +652,28 @@ class TwoStagePPOAgent:
             )
             
             if bandwidth_logits.size(0) > 0:
+                # 生成带宽约束
+                bandwidth_mapping = state.get('bandwidth_mapping', {i: 10 + i * 20 for i in range(self.bandwidth_levels)})
+                expected_num_links = bandwidth_logits.size(0)
+                bandwidth_constraints = self.constraint_manager.generate_bandwidth_constraints(
+                    virtual_edge_attr, bandwidth_mapping, expected_num_links
+                )
+                
+                # 应用约束管理器生成的带宽约束
+                bandwidth_logits = self.constraint_manager.apply_bandwidth_constraints(
+                    bandwidth_logits, bandwidth_constraints, temperature=1.0
+                )
+                
+                # 应用原有的带宽约束分数（如果有的话）
                 bandwidth_logits = bandwidth_logits + torch.log(bandwidth_constraint_scores + 1e-8)
+                
+                # 检查数值稳定性
+                if torch.isnan(bandwidth_logits).any() or torch.isinf(bandwidth_logits).any():
+                    print("警告：更新阶段 bandwidth_logits 包含 NaN 或 Inf 值，使用均匀分布")
+                    # 保持梯度信息，只替换无效值
+                    bandwidth_logits = torch.where(torch.isnan(bandwidth_logits) | torch.isinf(bandwidth_logits), 
+                                                 torch.zeros_like(bandwidth_logits), bandwidth_logits)
+                
                 bandwidth_probs = F.softmax(bandwidth_logits, dim=-1)
                 
                 bandwidth_dist = torch.distributions.Categorical(bandwidth_probs)

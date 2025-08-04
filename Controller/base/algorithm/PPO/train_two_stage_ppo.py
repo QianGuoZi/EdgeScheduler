@@ -402,14 +402,14 @@ def main():
         num_physical_nodes_range=(5, 8),
         max_virtual_nodes_range=(3, 6),
         bandwidth_levels=10,
-        physical_cpu_range=(50.0, 200.0),
-        physical_memory_range=(100.0, 400.0),
-        physical_bandwidth_range=(100.0, 1000.0),
-        virtual_cpu_range=(10.0, 50.0),
-        virtual_memory_range=(20.0, 100.0),
-        virtual_bandwidth_range=(10.0, 200.0),
-        physical_connectivity_prob=0.3,
-        virtual_connectivity_prob=0.4,
+        physical_cpu_range=(128, 256),
+        physical_memory_range=(300, 500),
+        physical_bandwidth_range=(100, 1000),
+        virtual_cpu_range=(5, 10),
+        virtual_memory_range=(20, 50),
+        virtual_bandwidth_range=(5, 15),
+        physical_connectivity_prob=0.9,
+        virtual_connectivity_prob=0.7,
         lr=3e-4,
         gamma=0.99,
         gae_lambda=0.95,
@@ -419,10 +419,10 @@ def main():
     )
     
     # 开始训练
-    trainer.train(num_episodes=500, save_interval=100, eval_interval=50)
+    trainer.train(num_episodes=2000, save_interval=100, eval_interval=50)
     
     # 测试智能体
-    trainer.test_agent(num_test_episodes=10)
+    # trainer.test_agent(num_test_episodes=10)
     
     print(f"\n🎉 训练和测试完成！")
 

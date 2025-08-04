@@ -1,0 +1,17 @@
+{
+  "episode_rewards": [
+    0.5663236744758746
+  ],
+  "episode_lengths": [
+    1.0
+  ],
+  "mapping_actor_losses": [],
+  "bandwidth_actor_losses": [],
+  "critic_losses": [],
+  "constraint_violations": [
+    0.0
+  ],
+  "resource_utilization": [],
+  "load_balancing": [],
+  "bandwidth_satisfaction": []
+}

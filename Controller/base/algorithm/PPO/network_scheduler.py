@@ -16,12 +16,12 @@ class NetworkTopology:
         for i in range(num_nodes):
             self.graph.add_node(i)
         
-        # 链路信息
+        # 物理链路信息
         self.links = {}  # (node1, node2) -> bandwidth_info
         self.node_resources = {}  # node_id -> {cpu, memory}
         
-    def add_link(self, node1: int, node2: int, bandwidth_1_to_2: float, bandwidth_2_to_1: float, 
-                 used_bandwidth_1_to_2: float = 0, used_bandwidth_2_to_1: float = 0):
+    def add_link(self, node1: int, node2: int, bandwidth_1_to_2: int, bandwidth_2_to_1: int, 
+                 used_bandwidth_1_to_2: int = 0, used_bandwidth_2_to_1: int = 0):
         """添加链路，支持不对称带宽和初始使用量"""
         self.graph.add_edge(node1, node2)
         # 从node1到node2的链路
@@ -35,7 +35,7 @@ class NetworkTopology:
             'used_bandwidth': used_bandwidth_2_to_1  # 支持设置初始已使用量
         }
     
-    def set_node_resources(self, node_id: int, cpu: float, memory: float, used_cpu: float = 0, used_memory: float = 0):
+    def set_node_resources(self, node_id: int, cpu: int, memory: int, used_cpu: int = 0, used_memory: int = 0):
         """设置节点资源"""
         self.node_resources[node_id] = {
             'cpu': cpu,
@@ -53,7 +53,7 @@ class NetworkTopology:
             return []
     
     def check_bandwidth_availability(self, path: List[int], 
-                                   required_bandwidth: float) -> bool:
+                                   required_bandwidth: int) -> bool:
         """检查路径上的带宽是否足够"""
         if len(path) < 2:
             return True
@@ -161,7 +161,7 @@ class VirtualWork:
         self.node_requirements = {}  # node_id -> {cpu, memory}
         self.link_requirements = []  # [{from, to, min_bandwidth, max_bandwidth}]
         
-    def set_node_requirement(self, node_id: int, cpu: float, memory: float):
+    def set_node_requirement(self, node_id: int, cpu: int, memory: int):
         """设置节点需求"""
         self.node_requirements[node_id] = {
             'cpu': cpu,
@@ -169,8 +169,8 @@ class VirtualWork:
         }
     
     def add_link_requirement(self, from_node: int, to_node: int, 
-                           min_bandwidth_1_to_2: float, max_bandwidth_1_to_2: float,
-                           min_bandwidth_2_to_1: float, max_bandwidth_2_to_1: float):
+                           min_bandwidth_1_to_2: int, max_bandwidth_1_to_2: int,
+                           min_bandwidth_2_to_1: int, max_bandwidth_2_to_1: int):
         """添加链路需求，支持不对称带宽"""
         self.link_requirements.append({
             'from': from_node,
@@ -188,7 +188,23 @@ class NetworkScheduler:
         self.topology = topology
         self.node_mapping = {}  # virtual_node -> physical_node
         self.bandwidth_allocation = {}  # (virtual_from, virtual_to) -> bandwidth
+        self.virtual_works = {}  # virtual_work_id -> VirtualWork
         self.scheduled_nodes = set()
+        # 新增：保存多个VirtualWork实例的列表
+        self.virtual_work_list = []  # List[VirtualWork]
+        
+    def add_virtual_work(self, virtual_work: VirtualWork, work_id: str = None):
+        """添加虚拟工作到调度器"""
+        if work_id is None:
+            work_id = f"work_{len(self.virtual_work_list)}"
+        
+        self.virtual_works[work_id] = virtual_work
+        self.virtual_work_list.append(virtual_work)
+        
+    def clear_virtual_works(self):
+        """清空所有虚拟工作"""
+        self.virtual_works.clear()
+        self.virtual_work_list.clear()
         
     def schedule_node(self, virtual_node: int, physical_node: int) -> bool:
         """调度虚拟节点到物理节点"""
@@ -209,7 +225,7 @@ class NetworkScheduler:
         return True
     
     def allocate_bandwidth(self, virtual_from: int, virtual_to: int, 
-                          bandwidth: float) -> bool:
+                          bandwidth: int) -> bool:
         """分配虚拟链路带宽"""
         if virtual_from not in self.scheduled_nodes or virtual_to not in self.scheduled_nodes:
             return False
@@ -237,30 +253,104 @@ class NetworkScheduler:
         
         return True
     
-    def _check_node_resources(self, virtual_node: int, physical_node: int) -> bool:
-        """检查节点资源是否足够"""
-        if virtual_node not in self.topology.node_resources:
+    def _check_bandwidth_availability(self, virtual_from: int, virtual_to: int, 
+                                   required_bandwidth: int) -> bool:
+        """
+        检查两个虚拟节点之间的链路带宽资源是否足够
+        
+        Args:
+            virtual_from: 源虚拟节点ID
+            virtual_to: 目标虚拟节点ID
+            required_bandwidth: 需要的带宽
+            
+        Returns:
+            bool: True表示带宽足够，False表示带宽不足
+        """
+        # 检查虚拟节点是否已经调度
+        if virtual_from not in self.scheduled_nodes or virtual_to not in self.scheduled_nodes:
+            print(f"警告：虚拟节点 {virtual_from} 或 {virtual_to} 尚未调度")
             return False
         
-        available = self.topology.get_available_resources(physical_node)
-        required = self.topology.node_resources[virtual_node]
+        # 获取对应的物理节点
+        physical_from = self.node_mapping[virtual_from]
+        physical_to = self.node_mapping[virtual_to]
         
-        return (available['cpu'] >= required['cpu'] and 
-                available['memory'] >= required['memory'])
+        # 如果映射到同一物理节点，带宽消耗为0，总是返回True
+        if physical_from == physical_to:
+            print(f"虚拟节点 {virtual_from} 和 {virtual_to} 映射到同一物理节点 {physical_from}，带宽需求为0")
+            return True
+        
+        # 获取最短路径
+        path = self.topology.get_shortest_path(physical_from, physical_to)
+        if not path:
+            print(f"警告：物理节点 {physical_from} 和 {physical_to} 之间无路径")
+            return False
+        
+        # 检查路径上的带宽是否足够
+        if not self.topology.check_bandwidth_availability(path, required_bandwidth):
+            print(f"警告：路径 {path} 上的可用带宽不足以支持需求带宽 {required_bandwidth}")
+            return False
+        
+        print(f"✅ 虚拟链路 ({virtual_from}, {virtual_to}) 的带宽需求 {required_bandwidth} 可以满足")
+        return True
+    
+    def _check_node_resources(self, virtual_node: int, physical_node: int) -> bool:
+        """检查节点资源是否足够"""
+        # 首先检查topology中是否有该虚拟节点的资源信息（向后兼容）
+        # if virtual_node in self.topology.node_resources:
+        #     available = self.topology.get_available_resources(physical_node)
+        #     required = self.topology.node_resources[virtual_node]
+        #     print(f"检查节点资源是否足够 (从topology):")
+        #     print(f"virtual_node: {virtual_node}, available: {available}")
+        #     print(f"physical_node: {physical_node}, required: {required}")
+            
+        #     return (available['cpu'] >= required['cpu'] and 
+        #             available['memory'] >= required['memory'])
+        
+        # 从virtual_work_list中查找虚拟节点的资源需求
+        for virtual_work in self.virtual_work_list:
+            if virtual_node in virtual_work.node_requirements:
+                available = self.topology.get_available_resources(physical_node)
+                required = virtual_work.node_requirements[virtual_node]
+                print(f"检查节点资源是否足够 (从virtual_work):")
+                print(f"virtual_node: {virtual_node}, available: {available}")
+                print(f"physical_node: {physical_node}, required: {required}")
+                
+                return (available['cpu'] >= required['cpu'] and
+                        available['memory'] >= required['memory'])
+        
+        # 如果都找不到，返回False
+        print(f"警告：找不到虚拟节点 {virtual_node} 的资源需求信息")
+        return False
     
     def _allocate_node_resources(self, virtual_node: int, physical_node: int):
         """分配节点资源"""
-        required = self.topology.node_resources[virtual_node]
-        self.topology.allocate_node_resources(physical_node, 
-                                            required['cpu'], 
-                                            required['memory'])
+        # # 首先检查topology中是否有该虚拟节点的资源信息（向后兼容）
+        # if virtual_node in self.topology.node_resources:
+        #     required = self.topology.node_resources[virtual_node]
+        #     self.topology.allocate_node_resources(physical_node, 
+        #                                         required['cpu'], 
+        #                                         required['memory'])
+        #     return
+        
+        # 从virtual_work_list中查找虚拟节点的资源需求
+        for virtual_work in self.virtual_work_list:
+            if virtual_node in virtual_work.node_requirements:
+                required = virtual_work.node_requirements[virtual_node]
+                self.topology.allocate_node_resources(physical_node, 
+                                                    required['cpu'], 
+                                                    required['memory'])
+                return
+        
+        print(f"警告：找不到虚拟节点 {virtual_node} 的资源需求信息，无法分配资源")
     
     def get_scheduling_result(self) -> Dict:
         """获取调度结果"""
         return {
             'node_mapping': self.node_mapping.copy(),
             'bandwidth_allocation': self.bandwidth_allocation.copy(),
-            'scheduled_nodes': list(self.scheduled_nodes)
+            'scheduled_nodes': list(self.scheduled_nodes),
+            'virtual_works_count': len(self.virtual_work_list)
         }
     
     def calculate_reward(self, virtual_work: VirtualWork) -> float:
@@ -307,10 +397,16 @@ class NetworkScheduler:
                 satisfaction_2_to_1 = 0
                 
                 if min_req_1_to_2 <= allocated_1_to_2 <= max_req_1_to_2:
-                    satisfaction_1_to_2 = (allocated_1_to_2 - min_req_1_to_2) / (max_req_1_to_2 - min_req_1_to_2)
+                    if max_req_1_to_2 > min_req_1_to_2:
+                        satisfaction_1_to_2 = (allocated_1_to_2 - min_req_1_to_2) / (max_req_1_to_2 - min_req_1_to_2)
+                    else:
+                        satisfaction_1_to_2 = 1.0  # 如果最小和最大需求相同，则完全满足
                 
                 if min_req_2_to_1 <= allocated_2_to_1 <= max_req_2_to_1:
-                    satisfaction_2_to_1 = (allocated_2_to_1 - min_req_2_to_1) / (max_req_2_to_1 - min_req_2_to_1)
+                    if max_req_2_to_1 > min_req_2_to_1:
+                        satisfaction_2_to_1 = (allocated_2_to_1 - min_req_2_to_1) / (max_req_2_to_1 - min_req_2_to_1)
+                    else:
+                        satisfaction_2_to_1 = 1.0  # 如果最小和最大需求相同，则完全满足
                 
                 # 取两个方向的平均满足度
                 avg_satisfaction = (satisfaction_1_to_2 + satisfaction_2_to_1) / 2
@@ -353,11 +449,21 @@ class NetworkScheduler:
         """重置调度器（只重置当前调度的资源，保留原有使用量）"""
         # 只释放当前调度器分配的资源，不重置整个拓扑
         for virtual_node, physical_node in self.node_mapping.items():
+            # 首先检查topology中是否有该虚拟节点的资源信息（向后兼容）
             if virtual_node in self.topology.node_resources:
                 required = self.topology.node_resources[virtual_node]
                 self.topology.release_node_resources(physical_node, 
                                                    required['cpu'], 
                                                    required['memory'])
+            else:
+                # 从virtual_work_list中查找虚拟节点的资源需求
+                for virtual_work in self.virtual_work_list:
+                    if virtual_node in virtual_work.node_requirements:
+                        required = virtual_work.node_requirements[virtual_node]
+                        self.topology.release_node_resources(physical_node, 
+                                                           required['cpu'], 
+                                                           required['memory'])
+                        break
         
         # 释放当前调度的带宽
         for (virtual_from, virtual_to), bandwidth in self.bandwidth_allocation.items():
@@ -373,11 +479,12 @@ class NetworkScheduler:
         self.node_mapping = {}
         self.bandwidth_allocation = {}
         self.scheduled_nodes = set()
+        # 注意：不清空virtual_work_list，因为虚拟工作信息应该保留
 
 def create_sample_topology(num_nodes: int = 10, 
-                          cpu_range: Tuple[float, float] = (50.0, 100.0),
-                          memory_range: Tuple[float, float] = (100.0, 200.0),
-                          bandwidth_range: Tuple[float, float] = (100.0, 500.0),
+                          cpu_range: Tuple[int, int] = (50, 100),
+                          memory_range: Tuple[int, int] = (100, 200),
+                          bandwidth_range: Tuple[int, int] = (100, 500),
                           connectivity_prob: float = 0.3) -> NetworkTopology:
     """创建示例网络拓扑"""
     topology = NetworkTopology(num_nodes)
@@ -399,9 +506,9 @@ def create_sample_topology(num_nodes: int = 10,
     return topology
 
 def create_sample_virtual_work(num_nodes: int = 8,
-                              cpu_range: Tuple[float, float] = (10.0, 30.0),
-                              memory_range: Tuple[float, float] = (20.0, 50.0),
-                              bandwidth_range: Tuple[float, float] = (10.0, 100.0),
+                              cpu_range: Tuple[int, int] = (10, 30),
+                              memory_range: Tuple[int, int] = (20, 50),
+                              bandwidth_range: Tuple[int, int] = (10, 100),
                               connectivity_prob: float = 0.4) -> VirtualWork:
     """创建示例虚拟工作"""
     virtual_work = VirtualWork(num_nodes)
