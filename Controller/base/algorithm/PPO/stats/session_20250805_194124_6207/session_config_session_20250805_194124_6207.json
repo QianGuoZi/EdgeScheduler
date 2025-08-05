@@ -1,0 +1,44 @@
+{
+  "timestamp": "194124",
+  "num_physical_nodes_range": [
+    5,
+    8
+  ],
+  "max_virtual_nodes_range": [
+    5,
+    8
+  ],
+  "bandwidth_levels": 10,
+  "physical_cpu_range": [
+    128,
+    256
+  ],
+  "physical_memory_range": [
+    300,
+    500
+  ],
+  "physical_bandwidth_range": [
+    100,
+    500
+  ],
+  "virtual_cpu_range": [
+    5,
+    10
+  ],
+  "virtual_memory_range": [
+    20,
+    50
+  ],
+  "virtual_bandwidth_range": [
+    5,
+    15
+  ],
+  "physical_connectivity_prob": 0.9,
+  "virtual_connectivity_prob": 0.7,
+  "lr": 0.0003,
+  "gamma": 0.99,
+  "gae_lambda": 0.95,
+  "clip_ratio": 0.2,
+  "value_loss_coef": 0.5,
+  "entropy_coef": 0.01
+}

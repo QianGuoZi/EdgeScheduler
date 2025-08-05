@@ -263,6 +263,7 @@ class BandwidthActor(nn.Module):
             bandwidth_logits = torch.empty(0, self.bandwidth_levels, device=virtual_features.device)
             constraint_scores = torch.empty(0, self.bandwidth_levels, device=virtual_features.device)
             link_attention_weights = None
+            link_indices = []
         
         return bandwidth_logits, constraint_scores, link_attention_weights, link_indices
 
@@ -444,12 +445,12 @@ class TwoStagePPOAgent:
         
         if bandwidth_logits.size(0) > 0:
             # 生成带宽约束
-            # 从环境状态中获取bandwidth_mapping
-            bandwidth_mapping = state.get('bandwidth_mapping', {i: 10 + i * 20 for i in range(self.bandwidth_levels)})
+            # 从环境状态中获取链路特定的带宽映射
+            link_bandwidth_mappings = state.get('bandwidth_mapping', {})
             # 传递期望的链路数量以匹配bandwidth_logits的形状
             expected_num_links = bandwidth_logits.size(0)
             bandwidth_constraints = self.constraint_manager.generate_bandwidth_constraints(
-                virtual_edge_attr, bandwidth_mapping, expected_num_links
+                virtual_edge_attr, link_bandwidth_mappings, virtual_edge_index, expected_num_links
             )
             
             # 应用约束管理器生成的带宽约束
@@ -476,7 +477,8 @@ class TwoStagePPOAgent:
         else:
             bandwidth_action = torch.empty(0, dtype=torch.long, device=self.device)
             bandwidth_log_prob = torch.empty(0, dtype=torch.float, device=self.device)
-        
+        print(f"TwoStagePPOAgent select_actions mapping_action: {mapping_action}")
+        print(f"TwoStagePPOAgent select_actions bandwidth_action: {bandwidth_action}")
         # Critic评估
         value = self.critic(
             physical_features, physical_edge_index, physical_edge_attr,
@@ -525,8 +527,8 @@ class TwoStagePPOAgent:
         # 更新映射Actor
         self._update_mapping_actor(states, mapping_actions, old_mapping_log_probs, advantages, returns)
         
-        # 更新带宽Actor
-        self._update_bandwidth_actor(states, bandwidth_actions, old_bandwidth_log_probs, advantages, returns)
+        # 更新带宽Actor - 传递映射动作
+        self._update_bandwidth_actor(states, bandwidth_actions, old_bandwidth_log_probs, advantages, returns, mapping_actions)
         
         # 更新Critic
         self._update_critic(states, returns)
@@ -628,7 +630,7 @@ class TwoStagePPOAgent:
             total_loss.backward()
             self.mapping_optimizer.step()
     
-    def _update_bandwidth_actor(self, states, bandwidth_actions, old_log_probs, advantages, returns):
+    def _update_bandwidth_actor(self, states, bandwidth_actions, old_log_probs, advantages, returns, mapping_actions=None):
         """更新带宽Actor"""
         # 重新计算当前策略的概率
         current_log_probs = []
@@ -642,9 +644,14 @@ class TwoStagePPOAgent:
             virtual_edge_index = state['virtual_edge_index'].to(self.device)
             virtual_edge_attr = state['virtual_edge_attr'].to(self.device)
             
-            # 需要映射结果，这里简化处理
-            mapping_action = torch.randint(0, self.num_physical_nodes, (self.max_virtual_nodes,), device=self.device)
+            # 使用实际的映射动作，如果没有提供则使用随机动作
+            if mapping_actions is not None and i < len(mapping_actions):
+                mapping_action = torch.tensor(mapping_actions[i], dtype=torch.long, device=self.device)
+            # else:
+            #     # 如果没有映射动作，使用随机动作作为后备
+            #     mapping_action = torch.randint(0, self.num_physical_nodes, (self.max_virtual_nodes,), device=self.device)
             
+            print(f"update bandwidth_actor mapping_action: {mapping_action}")
             bandwidth_logits, bandwidth_constraint_scores, _, _ = self.bandwidth_actor(
                 physical_features, physical_edge_index, physical_edge_attr,
                 virtual_features, virtual_edge_index, virtual_edge_attr,
@@ -653,10 +660,10 @@ class TwoStagePPOAgent:
             
             if bandwidth_logits.size(0) > 0:
                 # 生成带宽约束
-                bandwidth_mapping = state.get('bandwidth_mapping', {i: 10 + i * 20 for i in range(self.bandwidth_levels)})
+                link_bandwidth_mappings = state.get('bandwidth_mapping', {})
                 expected_num_links = bandwidth_logits.size(0)
                 bandwidth_constraints = self.constraint_manager.generate_bandwidth_constraints(
-                    virtual_edge_attr, bandwidth_mapping, expected_num_links
+                    virtual_edge_attr, link_bandwidth_mappings, virtual_edge_index, expected_num_links
                 )
                 
                 # 应用约束管理器生成的带宽约束
@@ -771,67 +778,3 @@ class TwoStagePPOAgent:
             last_advantage = advantages[t]
         
         return advantages
-
-def test_two_stage_actor():
-    """测试两阶段Actor架构"""
-    print("🧪 测试两阶段Actor架构")
-    print("=" * 60)
-    
-    # 测试参数
-    physical_node_dim = 4
-    virtual_node_dim = 2  # 修改：从3改为2（删除优先级特征）
-    num_physical_nodes = 5
-    max_virtual_nodes = 4
-    bandwidth_levels = 10
-    
-    # 创建智能体
-    agent = TwoStagePPOAgent(
-        physical_node_dim=physical_node_dim,
-        virtual_node_dim=virtual_node_dim,
-        num_physical_nodes=num_physical_nodes,
-        max_virtual_nodes=max_virtual_nodes,
-        bandwidth_levels=bandwidth_levels
-    )
-    
-    print(f"✅ 智能体创建成功")
-    print(f"   映射Actor: {sum(p.numel() for p in agent.mapping_actor.parameters()):,} 参数")
-    print(f"   带宽Actor: {sum(p.numel() for p in agent.bandwidth_actor.parameters()):,} 参数")
-    print(f"   Critic: {sum(p.numel() for p in agent.critic.parameters()):,} 参数")
-    
-    # 创建测试状态
-    state = {
-        'physical_features': torch.randn(num_physical_nodes, physical_node_dim),
-        'physical_edge_index': torch.randint(0, num_physical_nodes, (2, 10)),
-        'physical_edge_attr': torch.randn(10, 2),
-        'virtual_features': torch.randn(max_virtual_nodes, virtual_node_dim),
-        'virtual_edge_index': torch.randint(0, max_virtual_nodes, (2, 6)),
-        'virtual_edge_attr': torch.randn(6, 2)
-    }
-    
-    # 测试动作选择
-    mapping_action, bandwidth_action, mapping_log_prob, bandwidth_log_prob, value, link_indices = agent.select_actions(state)
-    
-    print(f"\n📊 动作选择测试:")
-    print(f"   映射动作: {mapping_action}")
-    print(f"   带宽动作: {bandwidth_action}")
-    print(f"   映射log概率: {mapping_log_prob}")
-    print(f"   带宽log概率: {bandwidth_log_prob}")
-    print(f"   状态价值: {value:.4f}")
-    print(f"   链路索引: {link_indices}")
-    
-    # 测试经验存储
-    agent.store_transition(state, mapping_action, bandwidth_action, 1.0, value, mapping_log_prob, bandwidth_log_prob, False)
-    
-    print(f"\n✅ 经验存储测试成功")
-    print(f"   缓冲区大小: {len(agent.states)}")
-    
-    # 测试网络更新
-    agent.update()
-    
-    print(f"\n✅ 网络更新测试成功")
-    print(f"   缓冲区已清空: {len(agent.states) == 0}")
-    
-    print(f"\n🎯 两阶段Actor架构测试完成！")
-
-if __name__ == "__main__":
-    test_two_stage_actor() 

@@ -3,7 +3,7 @@
 
 import torch
 import numpy as np
-from typing import Tuple
+from typing import Tuple, Dict
 from network_scheduler import NetworkTopology, VirtualWork, NetworkScheduler
 
 class TwoStageNetworkSchedulerEnvironment:
@@ -46,12 +46,10 @@ class TwoStageNetworkSchedulerEnvironment:
         # 是否使用network_scheduler
         self.use_network_scheduler = use_network_scheduler
         
-        # 带宽等级到实际带宽的映射
-        self.bandwidth_mapping = self._create_bandwidth_mapping()
-        
         # 环境状态
         self.physical_state = None
         self.virtual_work = None
+        self.bandwidth_mapping = None  # 将在reset中创建
         self.current_step = 0
         self.max_steps = 1  # 两阶段：一步完成所有映射和带宽分配
         
@@ -65,13 +63,84 @@ class TwoStageNetworkSchedulerEnvironment:
         self.network_scheduler = None
     
     def _create_bandwidth_mapping(self):
-        """创建带宽等级到实际带宽的映射"""
-        # 10个等级，从最小到最大带宽
-        min_bandwidth = self.virtual_bandwidth_range[0]
-        max_bandwidth = self.virtual_bandwidth_range[1]
+        """创建每个虚拟链路的独立带宽映射"""
+        # 获取虚拟链路信息
+        virtual_edges = self.virtual_work['edges'].numpy()
+        virtual_edge_features = self.virtual_work['edge_features'].numpy()
         
-        bandwidths = np.linspace(min_bandwidth, max_bandwidth, self.bandwidth_levels)
-        return {i: int(bandwidths[i]) for i in range(self.bandwidth_levels)}
+        # 为每个虚拟链路创建独立的带宽映射
+        link_bandwidth_mappings = {}
+        
+        for i, (src, dst) in enumerate(virtual_edges.T):
+            # 从虚拟链路特征中获取该链路的带宽需求范围
+            min_bandwidth = virtual_edge_features[i][0]  # 最小带宽需求
+            max_bandwidth = virtual_edge_features[i][1]  # 最大带宽需求
+            
+            # 为该链路创建带宽映射
+            link_range = (min_bandwidth, max_bandwidth)
+            link_mapping = self.create_bandwidth_mapping(link_range, self.bandwidth_levels)
+            
+            # 使用链路索引作为键
+            link_key = f"{src}_{dst}"
+            link_bandwidth_mappings[link_key] = link_mapping
+            
+            print(f"链路 {src}->{dst}: 带宽范围 [{min_bandwidth}, {max_bandwidth}], 映射: {link_mapping}")
+        
+        return link_bandwidth_mappings
+    
+    @staticmethod
+    def create_bandwidth_mapping(bandwidth_range: Tuple[int, int], levels: int) -> Dict[int, int]:
+        """
+        创建带宽等级到实际带宽的映射（通用函数）
+        
+        Args:
+            bandwidth_range: 带宽范围，格式为 (min_bandwidth, max_bandwidth)
+            levels: 带宽等级数量
+            
+        Returns:
+            Dict[int, int]: 等级到带宽值的映射字典
+        """
+        min_bandwidth, max_bandwidth = bandwidth_range
+        
+        # 生成等间距的带宽值并转换为整数
+        bandwidths = np.linspace(min_bandwidth, max_bandwidth, levels).astype(int)
+        print(f"bandwidths: {bandwidths}")
+        
+        # 创建等级到带宽值的映射
+        return {i: int(bandwidths[i]) for i in range(levels)}
+    
+    @staticmethod
+    def get_bandwidth_value_for_link(link_bandwidth_mappings: Dict[str, Dict[int, int]], 
+                                   link_index: int, virtual_edges: np.ndarray, 
+                                   level: int) -> int:
+        """
+        根据链路索引和等级获取具体的带宽值
+        
+        Args:
+            link_bandwidth_mappings: 所有链路的带宽映射字典
+            link_index: 链路在虚拟边数组中的索引
+            virtual_edges: 虚拟边数组
+            level: 具体的带宽等级 (0 到 levels-1)
+            
+        Returns:
+            int: 对应的带宽值
+        """
+        if level < 0:
+            raise ValueError(f"带宽等级 {level} 不能为负数")
+        
+        # 获取链路信息
+        src, dst = virtual_edges[:, link_index]
+        link_key = f"{src}_{dst}"
+        
+        if link_key not in link_bandwidth_mappings:
+            raise ValueError(f"链路 {link_key} 的带宽映射不存在")
+        
+        link_mapping = link_bandwidth_mappings[link_key]
+        
+        if level >= len(link_mapping):
+            raise ValueError(f"带宽等级 {level} 超出有效范围 [0, {len(link_mapping)-1}]")
+        
+        return link_mapping[level]
     
     def _initialize_network_scheduler(self):
         """初始化network_scheduler相关对象"""
@@ -156,6 +225,9 @@ class TwoStageNetworkSchedulerEnvironment:
         else:
             self.virtual_work = virtual_work
         
+        # 创建链路特定的带宽映射
+        self.bandwidth_mapping = self._create_bandwidth_mapping()
+        
         # 重置调度结果
         self.mapping_result = None
         self.bandwidth_result = None
@@ -189,10 +261,11 @@ class TwoStageNetworkSchedulerEnvironment:
             bandwidth_usage = np.random.uniform(0.1, 0.8)
             physical_edge_features.append([bandwidth, bandwidth_usage])
         
-        # print(f"num_physical_nodes: {self.num_physical_nodes}")
-        # print(f"physical_features: {physical_features}")
-        # print(f"physical_edges: {physical_edges}")
-        # print(f"physical_edge_features: {physical_edge_features}")
+        print(f"reset physical_state")
+        print(f"num_physical_nodes: {self.num_physical_nodes}")
+        print(f"physical_features: {physical_features}")
+        print(f"physical_edges: {physical_edges}")
+        print(f"physical_edge_features: {physical_edge_features}")
 
         return {
             'features': torch.tensor(physical_features, dtype=torch.float32),
@@ -202,7 +275,7 @@ class TwoStageNetworkSchedulerEnvironment:
     
     def _generate_virtual_work(self):
         """生成随机虚拟工作需求"""
-        num_virtual_nodes = np.random.randint(2, self.max_virtual_nodes + 1)
+        num_virtual_nodes = np.random.randint(3, self.max_virtual_nodes + 1)
         
         # 虚拟节点特征：CPU需求, 内存需求
         virtual_features = []
@@ -223,11 +296,12 @@ class TwoStageNetworkSchedulerEnvironment:
                                             int(self.virtual_bandwidth_range[1] * 0.5) + 1)
             max_bandwidth = np.random.randint(min_bandwidth, self.virtual_bandwidth_range[1] + 1)
             virtual_edge_features.append([min_bandwidth, max_bandwidth])
-        
-        # print(f"num_virtual_nodes: {num_virtual_nodes}")
-        # print(f"virtual_features: {virtual_features}")
-        # print(f"virtual_edges: {virtual_edges}")
-        # print(f"virtual_edge_features: {virtual_edge_features}")
+
+        print(f"reset virtual_work")
+        print(f"num_virtual_nodes: {num_virtual_nodes}")
+        print(f"virtual_features: {virtual_features}")
+        print(f"virtual_edges: {virtual_edges}")
+        print(f"virtual_edge_features: {virtual_edge_features}")
 
         return {
             'features': torch.tensor(virtual_features, dtype=torch.float32),
@@ -237,26 +311,88 @@ class TwoStageNetworkSchedulerEnvironment:
         }
     
     def _get_physical_edges(self):
-        """获取物理网络边"""
+        """获取物理网络边，确保每个节点都至少有一条边"""
         edges = []
-        # 使用部分连接
+        connected_nodes = set()
+        
+        # 第一步：确保每个节点都至少有一条边
+        for i in range(self.num_physical_nodes):
+            if i not in connected_nodes:
+                # 为未连接的节点寻找连接
+                if i == 0:
+                    # 第一个节点连接到下一个节点
+                    if self.num_physical_nodes > 1:
+                        edges.append([i, 1])
+                        edges.append([1, i])  # 添加反向边
+                        connected_nodes.add(i)
+                        connected_nodes.add(1)
+                else:
+                    # 其他节点连接到前一个节点（如果前一个节点未连接）或第一个节点
+                    if i - 1 not in connected_nodes:
+                        edges.append([i, 0])
+                        edges.append([0, i])  # 添加反向边
+                        connected_nodes.add(i)
+                        connected_nodes.add(0)
+                    else:
+                        edges.append([i, i - 1])
+                        edges.append([i - 1, i])  # 添加反向边
+                        connected_nodes.add(i)
+        
+        # 第二步：添加额外的随机连接
         for i in range(self.num_physical_nodes):
             for j in range(i + 1, self.num_physical_nodes):
-                if np.random.random() < self.physical_connectivity_prob:
+                # 避免重复添加已有的边
+                if [i, j] not in edges and np.random.random() < self.physical_connectivity_prob:
                     edges.append([i, j])
                     edges.append([j, i])  # 添加反向边
-        return torch.tensor(edges, dtype=torch.long).t() if edges else torch.tensor([[0], [0]], dtype=torch.long)
+        
+        # 确保至少有一条边
+        if not edges:
+            edges = [[0, 1], [1, 0]]  # 默认连接节点0和1
+        
+        return torch.tensor(edges, dtype=torch.long).t()
     
     def _get_virtual_edges(self, num_virtual_nodes):
-        """获取虚拟网络边"""
+        """获取虚拟网络边，确保每个节点都至少有一条边"""
         edges = []
-        # 使用部分连接
+        connected_nodes = set()
+        
+        # 第一步：确保每个节点都至少有一条边
+        for i in range(num_virtual_nodes):
+            if i not in connected_nodes:
+                # 为未连接的节点寻找连接
+                if i == 0:
+                    # 第一个节点连接到下一个节点
+                    if num_virtual_nodes > 1:
+                        edges.append([i, 1])
+                        edges.append([1, i])  # 添加反向边
+                        connected_nodes.add(i)
+                        connected_nodes.add(1)
+                else:
+                    # 其他节点连接到前一个节点（如果前一个节点未连接）或第一个节点
+                    if i - 1 not in connected_nodes:
+                        edges.append([i, 0])
+                        edges.append([0, i])  # 添加反向边
+                        connected_nodes.add(i)
+                        connected_nodes.add(0)
+                    else:
+                        edges.append([i, i - 1])
+                        edges.append([i - 1, i])  # 添加反向边
+                        connected_nodes.add(i)
+        
+        # 第二步：添加额外的随机连接
         for i in range(num_virtual_nodes):
             for j in range(i + 1, num_virtual_nodes):
-                if np.random.random() < self.virtual_connectivity_prob:
+                # 避免重复添加已有的边
+                if [i, j] not in edges and np.random.random() < self.virtual_connectivity_prob:
                     edges.append([i, j])
                     edges.append([j, i])  # 添加反向边
-        return torch.tensor(edges, dtype=torch.long).t() if edges else torch.tensor([[0], [0]], dtype=torch.long)
+        
+        # 确保至少有一条边
+        if not edges:
+            edges = [[0, 1], [1, 0]]  # 默认连接节点0和1
+        
+        return torch.tensor(edges, dtype=torch.long).t()
     
     def _get_state(self):
         """获取当前状态"""
@@ -319,10 +455,11 @@ class TwoStageNetworkSchedulerEnvironment:
                 'bandwidth_result': bandwidth_action,
                 'is_valid': True
             }
-        print(f"reward: {reward}")
-        print(f"mapping_action: {mapping_action}")
-        print(f"bandwidth_action: {bandwidth_action}")
-        print(f"info: {info}")
+        print(f"TwoStageNetworkSchedulerEnvironment step 执行两阶段动作")
+        print(f"TwoStageNetworkSchedulerEnvironment step reward: {reward}")
+        print(f"TwoStageNetworkSchedulerEnvironment step mapping_action: {mapping_action}")
+        print(f"TwoStageNetworkSchedulerEnvironment step bandwidth_action: {bandwidth_action}")
+        print(f"TwoStageNetworkSchedulerEnvironment step info: {info}")
 
         # 环境结束
         done = self.current_step >= self.max_steps
@@ -341,10 +478,15 @@ class TwoStageNetworkSchedulerEnvironment:
         virtual_edges = self.virtual_work['edges'].numpy()
         for i, (src, dst) in enumerate(virtual_edges.T):
             if i < len(bandwidth_action):
-                allocated_bandwidth = self.bandwidth_mapping[bandwidth_action[i]]
-                success = self.network_scheduler.allocate_bandwidth(src, dst, allocated_bandwidth)
-                if not success:
-                    print(f"警告：虚拟链路({src},{dst})带宽分配{allocated_bandwidth}失败")
+                # 使用链路特定的带宽映射
+                link_key = f"{src}_{dst}"
+                if link_key in self.bandwidth_mapping:
+                    allocated_bandwidth = self.bandwidth_mapping[link_key][bandwidth_action[i]]
+                    success = self.network_scheduler.allocate_bandwidth(src, dst, allocated_bandwidth)
+                    if not success:
+                        print(f"警告：虚拟链路({src},{dst})带宽分配{allocated_bandwidth}失败")
+                else:
+                    print(f"警告：找不到链路 {link_key} 的带宽映射")
     
     def _validate_actions(self, mapping_action, bandwidth_action):
         """验证动作的有效性"""
@@ -450,21 +592,26 @@ class TwoStageNetworkSchedulerEnvironment:
         for i, (src, dst) in enumerate(virtual_edges.T):
             print(f"src: {src}, dst: {dst}")
             if i < len(bandwidth_action):
-                allocated_bandwidth = self.bandwidth_mapping[bandwidth_action[i]]
-                print(f"allocated_bandwidth: {allocated_bandwidth}")
-               
-                # 检查带宽需求约束
-                virtual_edge_features = self.virtual_work['edge_features'].numpy()
-                min_required = virtual_edge_features[i][0]
-                max_required = virtual_edge_features[i][1]
-                print(f"min_required: {min_required}")
-                print(f"max_required: {max_required}")
+                # 使用链路特定的带宽映射
+                link_key = f"{src}_{dst}"
+                if link_key in self.bandwidth_mapping:
+                    allocated_bandwidth = self.bandwidth_mapping[link_key][bandwidth_action[i]]
+                    print(f"allocated_bandwidth: {allocated_bandwidth}")
+                   
+                    # 检查带宽需求约束
+                    virtual_edge_features = self.virtual_work['edge_features'].numpy()
+                    min_required = virtual_edge_features[i][0]
+                    max_required = virtual_edge_features[i][1]
+                    print(f"min_required: {min_required}")
+                    print(f"max_required: {max_required}")
 
-                if allocated_bandwidth < min_required:
-                    constraint_violations.append(f"链路({src},{dst})的带宽分配({allocated_bandwidth})低于最小需求({min_required})")
-                
-                if allocated_bandwidth > max_required:
-                    constraint_violations.append(f"链路({src},{dst})的带宽分配({allocated_bandwidth})超过最大需求({max_required})")
+                    if allocated_bandwidth < min_required:
+                        constraint_violations.append(f"链路({src},{dst})的带宽分配({allocated_bandwidth})低于最小需求({min_required})")
+                    
+                    if allocated_bandwidth > max_required:
+                        constraint_violations.append(f"链路({src},{dst})的带宽分配({allocated_bandwidth})超过最大需求({max_required})")
+                else:
+                    constraint_violations.append(f"找不到链路 {link_key} 的带宽映射")
                 
                 # 检查物理路径带宽约束
                 src_physical = mapping_action[src]
@@ -580,6 +727,7 @@ class TwoStageNetworkSchedulerEnvironment:
         if len(bandwidth_action) == 0:
             return 1.0
         
+        virtual_edges = self.virtual_work['edges'].numpy()
         virtual_edge_features = self.virtual_work['edge_features'].numpy()
         satisfaction_scores = []
         
@@ -587,20 +735,28 @@ class TwoStageNetworkSchedulerEnvironment:
             if i >= len(virtual_edge_features):
                 break
             
-            allocated_bandwidth = self.bandwidth_mapping[bandwidth_level]
-            min_required = virtual_edge_features[i][0]
-            max_required = virtual_edge_features[i][1]
+            # 获取链路信息
+            src, dst = virtual_edges[:, i]
+            link_key = f"{src}_{dst}"
             
-            # 计算满足度（在最小和最大需求之间，越接近最大需求越好）
-            if allocated_bandwidth < min_required:
-                satisfaction = 0.0
-            elif allocated_bandwidth > max_required:
-                satisfaction = 1.0  # 超过最大需求也是好的
-            else:
-                # 在范围内，越接近最大需求越好
-                satisfaction = (allocated_bandwidth - min_required) / (max_required - min_required)
-            
-            satisfaction_scores.append(satisfaction)
+            if link_key in self.bandwidth_mapping:
+                allocated_bandwidth = self.bandwidth_mapping[link_key][bandwidth_level]
+                min_required = virtual_edge_features[i][0]
+                max_required = virtual_edge_features[i][1]
+                
+                # 计算满足度（在最小和最大需求之间，越接近最大需求越好）
+                if allocated_bandwidth < min_required:
+                    satisfaction = 0.0
+                elif allocated_bandwidth > max_required:
+                    satisfaction = 1.0  # 超过最大需求也是好的
+                else:
+                    # 在范围内，越接近最大需求越好
+                    if max_required - min_required == 0:
+                        satisfaction = 1.0  # 避免除零
+                    else:
+                        satisfaction = (allocated_bandwidth - min_required) / (max_required - min_required)
+                
+                satisfaction_scores.append(satisfaction)
         
         return np.mean(satisfaction_scores) if satisfaction_scores else 0.0
     
@@ -837,17 +993,27 @@ def demonstrate_network_scheduler_integration():
             best_level = 0
             best_diff = float('inf')
             
-            for level in range(env.bandwidth_levels):
-                allocated_bw = env.bandwidth_mapping[level]
-                diff = abs(allocated_bw - target_bw)
+            # 使用链路特定的带宽映射
+            link_key = f"{src}_{dst}"
+            if link_key in env.bandwidth_mapping:
+                link_mapping = env.bandwidth_mapping[link_key]
                 
-                if diff < best_diff:
-                    best_diff = diff
-                    best_level = level
-            
-            bandwidth_action.append(best_level)
-            allocated_bw = env.bandwidth_mapping[best_level]
-            print(f"   虚拟链路 ({src},{dst}): 等级{best_level} -> 带宽{allocated_bw}")
+                for level in range(env.bandwidth_levels):
+                    if level in link_mapping:
+                        allocated_bw = link_mapping[level]
+                        diff = abs(allocated_bw - target_bw)
+                        
+                        if diff < best_diff:
+                            best_diff = diff
+                            best_level = level
+                
+                bandwidth_action.append(best_level)
+                allocated_bw = link_mapping[best_level]
+                print(f"   虚拟链路 ({src},{dst}): 等级{best_level} -> 带宽{allocated_bw}")
+            else:
+                # 如果找不到链路映射，使用默认等级
+                bandwidth_action.append(0)
+                print(f"   虚拟链路 ({src},{dst}): 找不到带宽映射，使用默认等级0")
     
     # 执行调度
     print(f"\n🚀 执行调度:")

@@ -60,14 +60,16 @@ class ConstraintManager:
     
     def generate_bandwidth_constraints(self,
                                      virtual_edge_features: torch.Tensor,
-                                     bandwidth_mapping: Dict[int, int],
+                                     link_bandwidth_mappings: Dict[str, Dict[int, int]],
+                                     virtual_edges: torch.Tensor,
                                      expected_num_links: int = None) -> torch.Tensor:
         """
-        生成带宽分配约束矩阵
+        生成带宽分配约束矩阵（支持链路特定的带宽映射）
         
         Args:
             virtual_edge_features: 虚拟链路特征 [num_links, 2] (min_bandwidth, max_bandwidth)
-            bandwidth_mapping: 带宽等级到实际带宽的映射
+            link_bandwidth_mappings: 每个链路的带宽映射字典 {link_key: {level: bandwidth}}
+            virtual_edges: 虚拟边索引 [2, num_links]
             expected_num_links: 期望的链路数量，如果提供则扩展约束矩阵
             
         Returns:
@@ -85,12 +87,26 @@ class ConstraintManager:
             min_bandwidth = virtual_edge_features[link_idx, 0]
             max_bandwidth = virtual_edge_features[link_idx, 1]
             
-            for level in range(self.bandwidth_levels):
-                allocated_bandwidth = bandwidth_mapping[level]
+            # 获取链路信息
+            src, dst = virtual_edges[:, link_idx]
+            link_key = f"{src.item()}_{dst.item()}"
+            
+            if link_key in link_bandwidth_mappings:
+                link_mapping = link_bandwidth_mappings[link_key]
                 
-                # 检查带宽是否在允许范围内
-                if allocated_bandwidth < min_bandwidth or allocated_bandwidth > max_bandwidth:
-                    constraint_matrix[link_idx, level] = 0.0
+                for level in range(self.bandwidth_levels):
+                    if level in link_mapping:
+                        allocated_bandwidth = link_mapping[level]
+                        
+                        # 检查带宽是否在允许范围内
+                        if allocated_bandwidth < min_bandwidth or allocated_bandwidth > max_bandwidth:
+                            constraint_matrix[link_idx, level] = 0.0
+                    else:
+                        # 如果该等级不存在，标记为不可行
+                        constraint_matrix[link_idx, level] = 0.0
+            else:
+                # 如果找不到链路的映射，所有等级都标记为不可行
+                constraint_matrix[link_idx, :] = 0.0
         
         # 如果指定了期望的链路数量且不匹配，则调整约束矩阵
         if expected_num_links is not None and num_links != expected_num_links:
@@ -255,115 +271,3 @@ class ConstraintManager:
                 'total_feasible': total_feasible.item(),
                 'total_possible': total_possible
             }
-
-def test_constraint_manager():
-    """测试约束管理器"""
-    print("🧪 测试约束管理器")
-    print("=" * 60)
-    
-    # 创建约束管理器
-    constraint_manager = ConstraintManager(bandwidth_levels=10)
-    
-    # 测试数据
-    physical_features = torch.tensor([
-        [100, 200, 0.3, 0.4],  # 节点0: 100CPU, 200内存, 30%CPU使用, 40%内存使用
-        [150, 300, 0.5, 0.6],  # 节点1: 150CPU, 300内存, 50%CPU使用, 60%内存使用
-        [80, 150, 0.2, 0.3],   # 节点2: 80CPU, 150内存, 20%CPU使用, 30%内存使用
-    ])
-    
-    virtual_features = torch.tensor([
-        [30, 50],   # 虚拟节点0: 需要30CPU, 50内存
-        [40, 80],   # 虚拟节点1: 需要40CPU, 80内存
-        [25, 40],   # 虚拟节点2: 需要25CPU, 40内存
-    ])
-    
-    print("物理节点特征:")
-    for i, features in enumerate(physical_features):
-        cpu, memory, cpu_usage, memory_usage = features
-        available_cpu = cpu * (1 - cpu_usage)
-        available_memory = memory * (1 - memory_usage)
-        print(f"   节点{i}: 总CPU={cpu}, 总内存={memory}, 可用CPU={available_cpu:.1f}, 可用内存={available_memory:.1f}")
-    
-    print("\n虚拟节点需求:")
-    for i, features in enumerate(virtual_features):
-        cpu, memory = features
-        print(f"   虚拟节点{i}: 需要CPU={cpu}, 需要内存={memory}")
-    
-    # 生成节点映射约束
-    physical_edge_index = torch.tensor([[0, 1], [1, 2]], dtype=torch.long).t()
-    virtual_edge_index = torch.tensor([[0, 1], [1, 2]], dtype=torch.long).t()
-    
-    node_constraints = constraint_manager.generate_node_mapping_constraints(
-        physical_features, virtual_features, physical_edge_index, virtual_edge_index
-    )
-    
-    print(f"\n节点映射约束矩阵:")
-    print(node_constraints)
-    
-    # 统计可行动作
-    node_stats = constraint_manager.get_feasible_actions_count(node_constraints)
-    print(f"\n节点映射约束统计:")
-    print(f"   总可行映射: {node_stats['total_feasible']}")
-    print(f"   总可能映射: {node_stats['total_possible']}")
-    print(f"   每个虚拟节点的可行物理节点数: {node_stats['feasible_per_node']}")
-    
-    # 测试带宽约束
-    virtual_edge_features = torch.tensor([
-        [20, 60],   # 链路0: 最小20, 最大60
-        [30, 80],   # 链路1: 最小30, 最大80
-    ])
-    
-    bandwidth_mapping = {i: 10 + i * 10 for i in range(10)}  # 10, 20, 30, ..., 100
-    
-    print(f"\n带宽映射: {bandwidth_mapping}")
-    
-    bandwidth_constraints = constraint_manager.generate_bandwidth_constraints(
-        virtual_edge_features, bandwidth_mapping
-    )
-    
-    print(f"\n带宽约束矩阵:")
-    print(bandwidth_constraints)
-    print(f"带宽约束矩阵形状: {bandwidth_constraints.shape}")
-    
-    # 统计带宽约束
-    bandwidth_stats = constraint_manager.get_feasible_actions_count(bandwidth_constraints)
-    print(f"\n带宽约束统计:")
-    print(f"   总可行带宽等级: {bandwidth_stats['total_feasible']}")
-    print(f"   总可能带宽等级: {bandwidth_stats['total_possible']}")
-    print(f"   统计信息键: {list(bandwidth_stats.keys())}")
-    if 'feasible_per_link' in bandwidth_stats:
-        print(f"   每个链路的可行带宽等级数: {bandwidth_stats['feasible_per_link']}")
-    
-    # 测试约束应用
-    print(f"\n测试约束应用:")
-    
-    # 模拟原始logits
-    original_node_logits = torch.randn(3, 3)
-    print(f"原始节点映射logits:")
-    print(original_node_logits)
-    
-    # 应用约束
-    constrained_node_logits = constraint_manager.apply_node_mapping_constraints(
-        original_node_logits, node_constraints, temperature=1.0
-    )
-    
-    print(f"\n应用约束后的节点映射logits:")
-    print(constrained_node_logits)
-    
-    # 测试可行性检查
-    print(f"\n测试可行性检查:")
-    
-    # 测试一个可行的映射
-    feasible_mapping = torch.tensor([0, 0, 2])  # 虚拟节点0->物理节点0, 1->0, 2->2
-    is_feasible = constraint_manager.check_mapping_feasibility(feasible_mapping, node_constraints)
-    print(f"   映射 {feasible_mapping.tolist()}: {'可行' if is_feasible else '不可行'}")
-    
-    # 测试一个不可行的映射
-    infeasible_mapping = torch.tensor([1, 1, 1])  # 虚拟节点2的资源需求超过物理节点1的可用资源
-    is_feasible = constraint_manager.check_mapping_feasibility(infeasible_mapping, node_constraints)
-    print(f"   映射 {infeasible_mapping.tolist()}: {'可行' if is_feasible else '不可行'}")
-    
-    print(f"\n✅ 约束管理器测试完成！")
-
-if __name__ == "__main__":
-    test_constraint_manager() 

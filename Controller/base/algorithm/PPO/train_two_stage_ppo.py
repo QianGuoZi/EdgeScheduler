@@ -40,7 +40,8 @@ class TwoStagePPOTrainer:
                  entropy_coef: float = 0.01,
                  # 文件管理
                  model_dir: str = "models",
-                 stats_dir: str = "stats"):
+                 stats_dir: str = "stats",
+                 session_name: str = None):
         
         self.num_physical_nodes_range = num_physical_nodes_range
         self.max_virtual_nodes_range = max_virtual_nodes_range
@@ -66,13 +67,18 @@ class TwoStagePPOTrainer:
         self.value_loss_coef = value_loss_coef
         self.entropy_coef = entropy_coef
         
-        # 文件管理
-        self.model_dir = model_dir
-        self.stats_dir = stats_dir
+        # 文件管理 - 创建唯一的会话文件夹
+        self.session_name = session_name or self._generate_session_name()
+        self.model_dir = os.path.join(model_dir, self.session_name)
+        self.stats_dir = os.path.join(stats_dir, self.session_name)
         
         # 创建目录
         os.makedirs(self.model_dir, exist_ok=True)
         os.makedirs(self.stats_dir, exist_ok=True)
+        
+        print(f"📁 创建训练会话: {self.session_name}")
+        print(f"   模型目录: {self.model_dir}")
+        print(f"   统计目录: {self.stats_dir}")
         
         # 训练统计
         self.training_stats = {
@@ -89,6 +95,17 @@ class TwoStagePPOTrainer:
         
         # 初始化智能体和环境
         self._initialize_agent_and_env()
+        
+        # 保存会话配置信息
+        self._save_session_config()
+    
+    def _generate_session_name(self):
+        """生成唯一的会话名称"""
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        import random
+        session_id = random.randint(1000, 9999)
+        return f"session_{timestamp}_{session_id}"
     
     def _initialize_agent_and_env(self):
         """初始化智能体和环境"""
@@ -140,21 +157,26 @@ class TwoStagePPOTrainer:
     def train_episode(self):
         """训练一个episode"""
         # 重置环境
+        print(f"重置环境")
         state = self.env.reset()
         
         # 获取动作
+        print(f"获取动作")
         mapping_action, bandwidth_action, mapping_log_prob, bandwidth_log_prob, value, link_indices = self.agent.select_actions(state)
         
         # 执行动作
+        print(f"执行动作")
         next_state, reward, done, info = self.env.step(mapping_action, bandwidth_action)
         
         # 存储经验
+        print(f"存储经验")
         self.agent.store_transition(
             state, mapping_action, bandwidth_action, 
             reward, value, mapping_log_prob, bandwidth_log_prob, done
         )
         
         # 更新网络
+        print(f"更新网络")
         self.agent.update()
         
         # 记录统计信息
@@ -223,7 +245,7 @@ class TwoStagePPOTrainer:
     
     def save_model(self, episode):
         """保存模型"""
-        model_path = os.path.join(self.model_dir, f"two_stage_ppo_model_episode_{episode}.pth")
+        model_path = os.path.join(self.model_dir, f"ppo_model_{self.session_name}_episode_{episode}.pth")
         
         torch.save({
             'episode': episode,
@@ -251,9 +273,11 @@ class TwoStagePPOTrainer:
         
         print(f"💾 模型已保存: {model_path}")
     
-    def load_model(self, episode):
+    def load_model(self, episode, session_name=None):
         """加载模型"""
-        model_path = os.path.join(self.model_dir, f"two_stage_ppo_model_episode_{episode}.pth")
+        if session_name is None:
+            session_name = self.session_name
+        model_path = os.path.join(self.model_dir, f"ppo_model_{session_name}_episode_{episode}.pth")
         
         if not os.path.exists(model_path):
             print(f"❌ 模型文件不存在: {model_path}")
@@ -275,7 +299,7 @@ class TwoStagePPOTrainer:
     
     def save_training_stats(self, episode):
         """保存训练统计"""
-        stats_path = os.path.join(self.stats_dir, f"two_stage_training_stats_episode_{episode}.json")
+        stats_path = os.path.join(self.stats_dir, f"training_stats_{self.session_name}_episode_{episode}.json")
         
         # 转换为可序列化的格式
         serializable_stats = {}
@@ -338,7 +362,7 @@ class TwoStagePPOTrainer:
             plt.tight_layout()
             
             # 保存图片
-            plot_path = os.path.join(self.stats_dir, 'training_curves.png')
+            plot_path = os.path.join(self.stats_dir, f'training_curves_{self.session_name}.png')
             plt.savefig(plot_path, dpi=300, bbox_inches='tight')
             print(f"📈 训练曲线已保存: {plot_path}")
             
@@ -392,19 +416,108 @@ class TwoStagePPOTrainer:
         
         return test_stats
 
+    def _save_session_config(self):
+        """保存会话配置信息"""
+        config_path = os.path.join(self.stats_dir, f'session_config_{self.session_name}.json')
+        
+        config_data = {
+            'timestamp': self.session_name.split('_')[-2], # 从会话名称提取时间戳
+            'num_physical_nodes_range': self.num_physical_nodes_range,
+            'max_virtual_nodes_range': self.max_virtual_nodes_range,
+            'bandwidth_levels': self.bandwidth_levels,
+            'physical_cpu_range': self.physical_cpu_range,
+            'physical_memory_range': self.physical_memory_range,
+            'physical_bandwidth_range': self.physical_bandwidth_range,
+            'virtual_cpu_range': self.virtual_cpu_range,
+            'virtual_memory_range': self.virtual_memory_range,
+            'virtual_bandwidth_range': self.virtual_bandwidth_range,
+            'physical_connectivity_prob': self.physical_connectivity_prob,
+            'virtual_connectivity_prob': self.virtual_connectivity_prob,
+            'lr': self.lr,
+            'gamma': self.gamma,
+            'gae_lambda': self.gae_lambda,
+            'clip_ratio': self.clip_ratio,
+            'value_loss_coef': self.value_loss_coef,
+            'entropy_coef': self.entropy_coef
+        }
+        
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config_data, f, indent=2, ensure_ascii=False)
+        
+        print(f"📋 会话配置已保存: {config_path}")
+    
+    @staticmethod
+    def list_sessions(base_model_dir="models", base_stats_dir="stats"):
+        """列出所有可用的训练会话"""
+        sessions = []
+        
+        if os.path.exists(base_model_dir):
+            for session_name in os.listdir(base_model_dir):
+                session_path = os.path.join(base_model_dir, session_name)
+                if os.path.isdir(session_path):
+                    # 检查是否有配置文件
+                    config_path = os.path.join(base_stats_dir, session_name, f'session_config_{session_name}.json')
+                    if os.path.exists(config_path):
+                        try:
+                            with open(config_path, 'r', encoding='utf-8') as f:
+                                config = json.load(f)
+                            sessions.append({
+                                'name': session_name,
+                                'timestamp': config.get('timestamp', 'Unknown'),
+                                'config': config
+                            })
+                        except:
+                            sessions.append({
+                                'name': session_name,
+                                'timestamp': 'Unknown',
+                                'config': {}
+                            })
+        
+        return sessions
+    
+    @staticmethod
+    def print_sessions(base_model_dir="models", base_stats_dir="stats"):
+        """打印所有可用的训练会话"""
+        sessions = TwoStagePPOTrainer.list_sessions(base_model_dir, base_stats_dir)
+        
+        if not sessions:
+            print("📁 没有找到任何训练会话")
+            return
+        
+        print(f"📁 找到 {len(sessions)} 个训练会话:")
+        print("=" * 80)
+        
+        for i, session in enumerate(sessions, 1):
+            print(f"{i:2d}. {session['name']}")
+            print(f"    时间: {session['timestamp']}")
+            if session['config']:
+                config = session['config']
+                print(f"    物理节点范围: {config.get('num_physical_nodes_range', 'N/A')}")
+                print(f"    虚拟节点范围: {config.get('max_virtual_nodes_range', 'N/A')}")
+                print(f"    学习率: {config.get('lr', 'N/A')}")
+            print()
+
 def main():
     """主函数"""
+    import sys
+    
+    # 检查命令行参数
+    if len(sys.argv) > 1 and sys.argv[1] == "--list":
+        # 列出所有会话
+        TwoStagePPOTrainer.print_sessions()
+        return
+    
     print("🎯 两阶段PPO网络调度器训练")
     print("=" * 60)
     
     # 创建训练器
     trainer = TwoStagePPOTrainer(
         num_physical_nodes_range=(5, 8),
-        max_virtual_nodes_range=(3, 6),
+        max_virtual_nodes_range=(5, 8),
         bandwidth_levels=10,
         physical_cpu_range=(128, 256),
         physical_memory_range=(300, 500),
-        physical_bandwidth_range=(100, 1000),
+        physical_bandwidth_range=(100, 500),
         virtual_cpu_range=(5, 10),
         virtual_memory_range=(20, 50),
         virtual_bandwidth_range=(5, 15),
@@ -419,12 +532,15 @@ def main():
     )
     
     # 开始训练
-    trainer.train(num_episodes=2000, save_interval=100, eval_interval=50)
+    trainer.train(num_episodes=6000, save_interval=100, eval_interval=50)
     
     # 测试智能体
     # trainer.test_agent(num_test_episodes=10)
     
     print(f"\n🎉 训练和测试完成！")
+    print(f"📁 训练结果保存在: {trainer.stats_dir}")
+    print(f"💾 模型保存在: {trainer.model_dir}")
+    print(f"📋 使用 'python train_two_stage_ppo.py --list' 查看所有训练会话")
 
 if __name__ == "__main__":
     main() 
