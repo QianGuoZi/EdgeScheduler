@@ -1,0 +1,2 @@
+nodes,algorithm,L_load_balance,D_BW_satisfaction,mapping_success,total_reward
+5,Heuristic,0.3000,0.8000,True,0.6000

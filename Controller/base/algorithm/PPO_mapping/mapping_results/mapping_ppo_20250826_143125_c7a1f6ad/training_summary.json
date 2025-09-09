@@ -1,0 +1,71 @@
+{
+  "config": {
+    "env_config": {
+      "num_physical_nodes": 10,
+      "max_virtual_nodes": 6,
+      "physical_cpu_range": [
+        50,
+        100
+      ],
+      "physical_memory_range": [
+        50,
+        100
+      ],
+      "physical_bandwidth_range": [
+        100,
+        1000
+      ],
+      "virtual_cpu_range": [
+        10,
+        50
+      ],
+      "virtual_memory_range": [
+        10,
+        50
+      ],
+      "virtual_bandwidth_range": [
+        10,
+        100
+      ],
+      "physical_connectivity_prob": 1,
+      "virtual_connectivity_prob": 0.4,
+      "virtual_nodes_range": [
+        3,
+        6
+      ],
+      "seed": 42
+    },
+    "agent_config": {
+      "max_physical_nodes": 10,
+      "max_virtual_nodes": 6,
+      "hidden_dim": 128,
+      "lr": 0.0003
+    },
+    "training_config": {
+      "total_episodes": 2000,
+      "batch_size": 32,
+      "update_frequency": 32,
+      "print_frequency": 50,
+      "save_frequency": 200,
+      "warmup_episodes": 100,
+      "curriculum_enabled": true,
+      "curriculum_start": 300,
+      "ppo_clip": 0.2,
+      "value_coef": 0.5,
+      "entropy_coef": 0.01,
+      "gamma": 0.99
+    }
+  },
+  "results": {
+    "total_episodes": 2000,
+    "final_success_rate": 0.65,
+    "best_success_rate": 0.79,
+    "average_reward": 3.646313598623036,
+    "average_length": 2.54
+  },
+  "run_info": {
+    "run_id": "mapping_ppo_20250826_143125_c7a1f6ad",
+    "start_time": "2025-08-26T14:32:06.313748",
+    "output_dir": "mapping_results/mapping_ppo_20250826_143125_c7a1f6ad"
+  }
+}

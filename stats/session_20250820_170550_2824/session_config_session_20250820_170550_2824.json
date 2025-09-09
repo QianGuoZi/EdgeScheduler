@@ -1,0 +1,58 @@
+{
+  "timestamp": "170550",
+  "seed": 42,
+  "num_physical_nodes_range": [
+    5,
+    8
+  ],
+  "virtual_nodes_range": [
+    5,
+    8
+  ],
+  "bandwidth_levels": 10,
+  "physical_cpu_range": [
+    50,
+    100
+  ],
+  "physical_memory_range": [
+    50,
+    100
+  ],
+  "physical_bandwidth_range": [
+    50,
+    100
+  ],
+  "virtual_cpu_range": [
+    8,
+    10
+  ],
+  "virtual_memory_range": [
+    8,
+    10
+  ],
+  "virtual_bandwidth_range": [
+    5,
+    15
+  ],
+  "physical_connectivity_prob": 0.9,
+  "virtual_connectivity_prob": 0.7,
+  "lr": 0.0003,
+  "gamma": 0.99,
+  "gae_lambda": 0.95,
+  "clip_ratio": 0.2,
+  "value_loss_coef": 0.5,
+  "entropy_coef": 0.01,
+  "n_epochs": 4,
+  "replay_buffer_type": "simple",
+  "replay_buffer_size": 256,
+  "batch_size": 64,
+  "update_frequency": 1,
+  "priority_alpha": 0.6,
+  "priority_beta": 0.4,
+  "n_steps": 256,
+  "initial_temperature": 2.0,
+  "final_temperature": 0.5,
+  "temperature_decay": 0.9986,
+  "use_tensorboard": true,
+  "tensorboard_log_dir": "runs/session_20250820_170550_2824"
+}

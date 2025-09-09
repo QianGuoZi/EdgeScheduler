@@ -1,0 +1,71 @@
+{
+  "config": {
+    "env_config": {
+      "num_physical_nodes": 10,
+      "physical_cpu_range": [
+        50,
+        100
+      ],
+      "physical_memory_range": [
+        50,
+        100
+      ],
+      "physical_bandwidth_range": [
+        100,
+        1000
+      ],
+      "task_cpu_range": [
+        10,
+        50
+      ],
+      "task_memory_range": [
+        10,
+        50
+      ],
+      "task_bandwidth_range": [
+        10,
+        100
+      ],
+      "physical_connectivity_prob": 1,
+      "task_connectivity_prob": 0.4,
+      "task_nodes_range": [
+        3,
+        8
+      ],
+      "initial_usage_range": [
+        0.1,
+        0.5
+      ],
+      "seed": 42
+    },
+    "agent_config": {
+      "num_physical_nodes": 10,
+      "hidden_dim": 128,
+      "lr": 1e-05
+    },
+    "training_config": {
+      "total_episodes": 2000,
+      "batch_size": 32,
+      "update_frequency": 10,
+      "print_frequency": 50,
+      "save_frequency": 200,
+      "gamma": 0.99,
+      "value_coef": 0.5,
+      "entropy_coef": 0.01,
+      "max_grad_norm": 1.0
+    }
+  },
+  "results": {
+    "total_episodes": 2000,
+    "final_acceptance_rate": 1.0,
+    "best_acceptance_rate": 1.0,
+    "average_reward": 1.0965989283154454,
+    "average_length": 5.59,
+    "final_bandwidth_success_rate": 0.96
+  },
+  "run_info": {
+    "run_id": "a2c_20250829_145151_189fb06b",
+    "timestamp": "2025-08-29T14:52:28.476444",
+    "output_dir": "a2c_results/a2c_20250829_145151_189fb06b"
+  }
+}

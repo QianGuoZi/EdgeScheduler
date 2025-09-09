@@ -1,0 +1,563 @@
+{
+  "model1": {
+    "name": "new_heuristic_20250827_164927",
+    "type": "lightweight_heuristic_ppo",
+    "env_type": "NewHeuristic",
+    "experiment_info": {
+      "experiment_timestamp": "20250827_164927",
+      "experiment_name": "new_heuristic_20250827_164927"
+    }
+  },
+  "model2": {
+    "name": "exp_20250826_162200",
+    "type": "sequential_ppo",
+    "env_type": "Sequential",
+    "experiment_info": {
+      "experiment_timestamp": "20250826_162200",
+      "experiment_name": "exp_20250826_162200"
+    }
+  },
+  "test_config": {
+    "virtual_nodes_range": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "episodes_per_node_count": 30,
+    "base_seed": 42,
+    "temperature": 0.05
+  },
+  "detailed_results": {
+    "3": {
+      "num_virtual_nodes": 3,
+      "model1": {
+        "reward": {
+          "mean": 11.221050233189592,
+          "std": 1.0616573296966891,
+          "min": 8.697494756066694,
+          "max": 12.258940207463823
+        },
+        "success_rate": 1.0,
+        "avg_steps": 9.0,
+        "load_balance": {
+          "mean": 0.20570859776902212,
+          "std": 0.023324281875890324,
+          "min": 0.16559715834019198,
+          "max": 0.2622235874043906
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.942294191919192,
+          "std": 0.1181551376555923,
+          "min": 0.6666666666666666,
+          "max": 1.0
+        },
+        "composite_score": {
+          "mean": 0.8682927970750849,
+          "std": 0.06161190120772438,
+          "min": 0.7272576842240206,
+          "max": 0.917201420829904
+        }
+      },
+      "model2": {
+        "reward": {
+          "mean": 8.297225834129218,
+          "std": 0.6859156249545424,
+          "min": 5.719696546427815,
+          "max": 9.353263345328427
+        },
+        "success_rate": 1.0,
+        "avg_steps": 9.0,
+        "load_balance": {
+          "mean": 0.1962009176148826,
+          "std": 0.022241436887882573,
+          "min": 0.1532378556071611,
+          "max": 0.24018855351931415
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.709887126286171,
+          "std": 0.08901884099907079,
+          "min": 0.32254607465815577,
+          "max": 0.791109291109291
+        },
+        "composite_score": {
+          "mean": 0.7568431043356443,
+          "std": 0.046184308794897516,
+          "min": 0.5690736512571164,
+          "max": 0.8008639641469799
+        }
+      },
+      "comparison": {
+        "reward_difference": 2.923824399060374,
+        "success_rate_difference": 0.0,
+        "steps_difference": 0.0,
+        "model1_reward_wins": 28,
+        "model1_reward_win_rate": 0.9333333333333333,
+        "reward_ties": 0,
+        "model1_success_wins": 0,
+        "model1_success_win_rate": 0.0,
+        "success_ties": 30,
+        "statistical_tests": {
+          "t_test": {
+            "statistic": 11.239318670891661,
+            "p_value": 4.371127252081845e-12,
+            "significant": true
+          },
+          "wilcoxon": {
+            "statistic": 3.0,
+            "p_value": 9.313225746154785e-09,
+            "significant": true
+          }
+        }
+      }
+    },
+    "4": {
+      "num_virtual_nodes": 4,
+      "model1": {
+        "reward": {
+          "mean": 17.15127906623185,
+          "std": 1.6079072080523897,
+          "min": 15.030661598387917,
+          "max": 20.462833669166628
+        },
+        "success_rate": 1.0,
+        "avg_steps": 13.533333333333333,
+        "load_balance": {
+          "mean": 0.2321719580161787,
+          "std": 0.020517475989399892,
+          "min": 0.17495784411004914,
+          "max": 0.26602512421241226
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.9830333036552793,
+          "std": 0.04372613946838228,
+          "min": 0.8220588235294117,
+          "max": 1.0
+        },
+        "composite_score": {
+          "mean": 0.8754306728195503,
+          "std": 0.02557470359674064,
+          "min": 0.7881352105217303,
+          "max": 0.9125210779449755
+        }
+      },
+      "model2": {
+        "reward": {
+          "mean": 12.135832696017438,
+          "std": 1.3374140645142831,
+          "min": 7.942641618729437,
+          "max": 14.220484355782721
+        },
+        "success_rate": 1.0,
+        "avg_steps": 13.533333333333333,
+        "load_balance": {
+          "mean": 0.22875779229250529,
+          "std": 0.019904096461247578,
+          "min": 0.19444326523075883,
+          "max": 0.2833149056440702
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.7184689770870818,
+          "std": 0.0764187456051581,
+          "min": 0.4127872980108972,
+          "max": 0.7729879159411764
+        },
+        "composite_score": {
+          "mean": 0.7448555923972883,
+          "std": 0.04494182672154154,
+          "min": 0.5647361961834134,
+          "max": 0.7875888857948833
+        }
+      },
+      "comparison": {
+        "reward_difference": 5.015446370214413,
+        "success_rate_difference": 0.0,
+        "steps_difference": 0.0,
+        "model1_reward_wins": 30,
+        "model1_reward_win_rate": 1.0,
+        "reward_ties": 0,
+        "model1_success_wins": 0,
+        "model1_success_win_rate": 0.0,
+        "success_ties": 30,
+        "statistical_tests": {
+          "t_test": {
+            "statistic": 14.328439129836015,
+            "p_value": 1.0881565550577583e-14,
+            "significant": true
+          },
+          "wilcoxon": {
+            "statistic": 0.0,
+            "p_value": 1.862645149230957e-09,
+            "significant": true
+          }
+        }
+      }
+    },
+    "5": {
+      "num_virtual_nodes": 5,
+      "model1": {
+        "reward": {
+          "mean": 23.526527166566684,
+          "std": 3.1150335540120917,
+          "min": 17.976663755824095,
+          "max": 27.461916583918406
+        },
+        "success_rate": 1.0,
+        "avg_steps": 19.333333333333332,
+        "load_balance": {
+          "mean": 0.24664175254489917,
+          "std": 0.01738654994672766,
+          "min": 0.21163689146944642,
+          "max": 0.2805260342669452
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.9435548232145236,
+          "std": 0.10183244540013994,
+          "min": 0.652046783625731,
+          "max": 1.0
+        },
+        "composite_score": {
+          "mean": 0.8484565353348121,
+          "std": 0.0497337323911256,
+          "min": 0.703811959051101,
+          "max": 0.8929004997786393
+        }
+      },
+      "model2": {
+        "reward": {
+          "mean": 16.035332653007934,
+          "std": 2.371347847545836,
+          "min": 10.738746768253986,
+          "max": 20.414512851811168
+        },
+        "success_rate": 1.0,
+        "avg_steps": 18.933333333333334,
+        "load_balance": {
+          "mean": 0.2435414325588749,
+          "std": 0.016144365130018,
+          "min": 0.21174450698675046,
+          "max": 0.27383849066682653
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.7019980814570416,
+          "std": 0.09125951325420341,
+          "min": 0.40391029975208476,
+          "max": 0.7899893863323564
+        },
+        "composite_score": {
+          "mean": 0.7292283244490833,
+          "std": 0.04933620004932874,
+          "min": 0.5689045655705759,
+          "max": 0.7708969980106988
+        }
+      },
+      "comparison": {
+        "reward_difference": 7.491194513558749,
+        "success_rate_difference": 0.0,
+        "steps_difference": 0.3999999999999986,
+        "model1_reward_wins": 28,
+        "model1_reward_win_rate": 0.9333333333333333,
+        "reward_ties": 0,
+        "model1_success_wins": 0,
+        "model1_success_win_rate": 0.0,
+        "success_ties": 30,
+        "statistical_tests": {
+          "t_test": {
+            "statistic": 9.008726126101584,
+            "p_value": 6.668827675462009e-10,
+            "significant": true
+          },
+          "wilcoxon": {
+            "statistic": 3.0,
+            "p_value": 9.313225746154785e-09,
+            "significant": true
+          }
+        }
+      }
+    },
+    "6": {
+      "num_virtual_nodes": 6,
+      "model1": {
+        "reward": {
+          "mean": 30.397480726260063,
+          "std": 3.3697619715027276,
+          "min": 21.988828195833953,
+          "max": 37.63802543551137
+        },
+        "success_rate": 1.0,
+        "avg_steps": 25.266666666666666,
+        "load_balance": {
+          "mean": 0.26247691215158075,
+          "std": 0.01593258087099487,
+          "min": 0.2219409521877005,
+          "max": 0.2881975986246008
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.9432510778117504,
+          "std": 0.077143759948287,
+          "min": 0.7456790123456789,
+          "max": 1.0
+        },
+        "composite_score": {
+          "mean": 0.8403870828300847,
+          "std": 0.04107957591381299,
+          "min": 0.728740706860539,
+          "max": 0.8853469593066869
+        }
+      },
+      "model2": {
+        "reward": {
+          "mean": 20.68773031962558,
+          "std": 2.4534071040122014,
+          "min": 15.405324923327521,
+          "max": 25.26223766185154
+        },
+        "success_rate": 1.0,
+        "avg_steps": 25.266666666666666,
+        "load_balance": {
+          "mean": 0.2624711424127438,
+          "std": 0.020368510265463293,
+          "min": 0.20816330259748944,
+          "max": 0.29649940900591565
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.6863873271137158,
+          "std": 0.08166273548923368,
+          "min": 0.4318722819244907,
+          "max": 0.7706123955992654
+        },
+        "composite_score": {
+          "mean": 0.7119580923504859,
+          "std": 0.04609654982507812,
+          "min": 0.5732099119201496,
+          "max": 0.7661802431927989
+        }
+      },
+      "comparison": {
+        "reward_difference": 9.709750406634484,
+        "success_rate_difference": 0.0,
+        "steps_difference": 0.0,
+        "model1_reward_wins": 30,
+        "model1_reward_win_rate": 1.0,
+        "reward_ties": 0,
+        "model1_success_wins": 0,
+        "model1_success_win_rate": 0.0,
+        "success_ties": 30,
+        "statistical_tests": {
+          "t_test": {
+            "statistic": 12.053735596563323,
+            "p_value": 8.128086300165598e-13,
+            "significant": true
+          },
+          "wilcoxon": {
+            "statistic": 0.0,
+            "p_value": 1.862645149230957e-09,
+            "significant": true
+          }
+        }
+      }
+    },
+    "7": {
+      "num_virtual_nodes": 7,
+      "model1": {
+        "reward": {
+          "mean": 37.63672353437334,
+          "std": 4.929579284152262,
+          "min": 26.398511688761573,
+          "max": 49.483152827069645
+        },
+        "success_rate": 1.0,
+        "avg_steps": 31.866666666666667,
+        "load_balance": {
+          "mean": 0.2675254390058198,
+          "std": 0.02352239631065761,
+          "min": 0.2118562542963242,
+          "max": 0.3172668558057883
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.9248688036244729,
+          "std": 0.09476470519387822,
+          "min": 0.6559082829080854,
+          "max": 1.0
+        },
+        "composite_score": {
+          "mean": 0.8286716823093264,
+          "std": 0.052267471425147,
+          "min": 0.7024507558700177,
+          "max": 0.8940718728518379
+        }
+      },
+      "model2": {
+        "reward": {
+          "mean": 26.118700579701663,
+          "std": 2.974244126911314,
+          "min": 20.46137604218264,
+          "max": 32.46697318704465
+        },
+        "success_rate": 1.0,
+        "avg_steps": 32.53333333333333,
+        "load_balance": {
+          "mean": 0.27700916008423887,
+          "std": 0.017860768620924075,
+          "min": 0.21168245638399336,
+          "max": 0.302371889245344
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.6879207240470767,
+          "std": 0.059442065988945615,
+          "min": 0.5444166189440971,
+          "max": 0.7722278600195739
+        },
+        "composite_score": {
+          "mean": 0.7054557819814188,
+          "std": 0.0314361257000788,
+          "min": 0.6302459716296311,
+          "max": 0.7713373239901387
+        }
+      },
+      "comparison": {
+        "reward_difference": 11.518022954671675,
+        "success_rate_difference": 0.0,
+        "steps_difference": -0.6666666666666643,
+        "model1_reward_wins": 30,
+        "model1_reward_win_rate": 1.0,
+        "reward_ties": 0,
+        "model1_success_wins": 0,
+        "model1_success_win_rate": 0.0,
+        "success_ties": 30,
+        "statistical_tests": {
+          "t_test": {
+            "statistic": 10.958290882160016,
+            "p_value": 7.955394610849479e-12,
+            "significant": true
+          },
+          "wilcoxon": {
+            "statistic": 0.0,
+            "p_value": 1.862645149230957e-09,
+            "significant": true
+          }
+        }
+      }
+    },
+    "8": {
+      "num_virtual_nodes": 8,
+      "model1": {
+        "reward": {
+          "mean": 45.96065096867312,
+          "std": 7.058920549049351,
+          "min": 33.11601633320648,
+          "max": 57.08377760096904
+        },
+        "success_rate": 1.0,
+        "avg_steps": 40.8,
+        "load_balance": {
+          "mean": 0.27674716764529383,
+          "std": 0.02286048706751141,
+          "min": 0.22258923824568605,
+          "max": 0.32653467746555503
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.8755145353085018,
+          "std": 0.10599644607906614,
+          "min": 0.6142104261796043,
+          "max": 1.0
+        },
+        "composite_score": {
+          "mean": 0.799383683831604,
+          "std": 0.05803399930367413,
+          "min": 0.6572509356177509,
+          "max": 0.8826131963447353
+        }
+      },
+      "model2": {
+        "reward": {
+          "mean": 31.863153385581164,
+          "std": 4.542753466877628,
+          "min": 23.596742508940586,
+          "max": 40.691502324075934
+        },
+        "success_rate": 1.0,
+        "avg_steps": 40.53333333333333,
+        "load_balance": {
+          "mean": 0.2765711313832004,
+          "std": 0.023262230835791504,
+          "min": 0.20661465948475827,
+          "max": 0.3103586479365303
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.6742326885485,
+          "std": 0.07738398158817215,
+          "min": 0.4641821567949364,
+          "max": 0.7670993685635752
+        },
+        "composite_score": {
+          "mean": 0.6988307785826497,
+          "std": 0.04272940766166281,
+          "min": 0.591722646491351,
+          "max": 0.7715906617350965
+        }
+      },
+      "comparison": {
+        "reward_difference": 14.097497583091958,
+        "success_rate_difference": 0.0,
+        "steps_difference": 0.2666666666666657,
+        "model1_reward_wins": 27,
+        "model1_reward_win_rate": 0.9,
+        "reward_ties": 0,
+        "model1_success_wins": 0,
+        "model1_success_win_rate": 0.0,
+        "success_ties": 30,
+        "statistical_tests": {
+          "t_test": {
+            "statistic": 8.34757607036066,
+            "p_value": 3.351328074508151e-09,
+            "significant": true
+          },
+          "wilcoxon": {
+            "statistic": 11.0,
+            "p_value": 1.0244548320770264e-07,
+            "significant": true
+          }
+        }
+      }
+    }
+  },
+  "summary": {
+    "overall_performance": {
+      "model1": {
+        "avg_reward": 27.648951949215775,
+        "avg_success_rate": 1.0,
+        "name": "new_heuristic_20250827_164927"
+      },
+      "model2": {
+        "avg_reward": 19.1896625780105,
+        "avg_success_rate": 1.0,
+        "name": "exp_20250826_162200"
+      }
+    },
+    "comparison_summary": {
+      "model1_overall_win_rate": 0.9611111111111111,
+      "model1_wins_by_node_count": {
+        "3": 28,
+        "4": 30,
+        "5": 28,
+        "6": 30,
+        "7": 30,
+        "8": 27
+      },
+      "significant_difference_nodes": 6,
+      "total_test_nodes": 6,
+      "avg_reward_difference": 8.459289371205276,
+      "avg_success_rate_difference": 0.0,
+      "performance_advantage": "new_heuristic_20250827_164927",
+      "advantage_magnitude": 8.459289371205276
+    },
+    "statistical_analysis": {
+      "consistent_winner": "new_heuristic_20250827_164927",
+      "win_rate_confidence": 0.9611111111111111,
+      "significant_advantage": true
+    }
+  }
+}

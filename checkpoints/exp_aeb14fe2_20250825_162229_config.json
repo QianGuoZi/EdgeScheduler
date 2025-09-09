@@ -1,0 +1,59 @@
+{
+  "experiment_id": "aeb14fe2",
+  "experiment_timestamp": "20250825_162229",
+  "experiment_name": "exp_aeb14fe2_20250825_162229",
+  "creation_time": "2025-08-25T16:22:44.316222",
+  "env_config": {
+    "num_physical_nodes": 10,
+    "max_virtual_nodes": 6,
+    "bandwidth_levels": 10,
+    "physical_cpu_range": [
+      50,
+      100
+    ],
+    "physical_memory_range": [
+      50,
+      100
+    ],
+    "physical_bandwidth_range": [
+      100,
+      1000
+    ],
+    "virtual_cpu_range": [
+      10,
+      50
+    ],
+    "virtual_memory_range": [
+      20,
+      100
+    ],
+    "virtual_bandwidth_range": [
+      10,
+      200
+    ],
+    "physical_connectivity_prob": 0.3,
+    "virtual_connectivity_prob": 0.4,
+    "virtual_nodes_range": [
+      3,
+      6
+    ],
+    "seed": 42
+  },
+  "agent_config": {
+    "max_physical_nodes": 10,
+    "max_virtual_nodes": 6,
+    "bandwidth_levels": 10,
+    "hidden_dim": 128,
+    "lr": 0.0003
+  },
+  "training_config": {
+    "total_episodes": 3000,
+    "batch_size": 64,
+    "update_frequency": 64,
+    "print_frequency": 50,
+    "save_frequency": 200,
+    "warmup_episodes": 100,
+    "curriculum_enabled": false,
+    "curriculum_start": 500
+  }
+}

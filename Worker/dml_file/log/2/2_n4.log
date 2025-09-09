@@ -1,0 +1,40 @@
+ * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+ * Running on http://172.21.0.3:4444/ (Press CTRL+C to quit)
+222.201.187.50 - - [23/May/2025 08:06:15] "POST /conf/dataset HTTP/1.1" 200 -
+222.201.187.50 - - [23/May/2025 08:06:15] "POST /conf/structure HTTP/1.1" 200 -
+222.201.187.50 - - [23/May/2025 08:06:15] "GET /start HTTP/1.1" 200 -
+Aggregate: accuracy=0.15200000011920928, round=0,
+gossip to 2_n1
+send weights to 222.201.187.52:8007, cost=0.011742353439331055
+172.21.0.1 - - [23/May/2025 08:06:15] "POST //gossip HTTP/1.1" 200 -
+Train: loss=0.690780758857727, round=1,
+Aggregate: accuracy=0.1422532997727394, round=1,
+gossip to 2_n2
+send weights to 222.201.187.52:8008, cost=0.02486109733581543
+172.21.0.1 - - [23/May/2025 08:06:29] "POST //gossip HTTP/1.1" 200 -
+172.21.0.1 - - [23/May/2025 08:06:35] "POST //gossip HTTP/1.1" 200 -
+Train: loss=0.5537566542625427, round=2,
+Aggregate: accuracy=0.14434300619363785, round=2,
+gossip to 2_n1
+send weights to 222.201.187.52:8007, cost=0.017505168914794922
+172.21.0.1 - - [23/May/2025 08:06:42] "POST //gossip HTTP/1.1" 200 -
+127.0.0.1 - - [23/May/2025 08:06:43] "GET /hi HTTP/1.1" 200 -
+Train: loss=0.4728628396987915, round=3,
+Aggregate: accuracy=0.3988126640319824, round=3,
+gossip to 2_n2
+send weights to 222.201.187.52:8008, cost=0.21280741691589355
+Train: loss=0.3834391236305237, round=4,
+Aggregate: accuracy=0.44669129157066345, round=4,
+gossip to 2_n2
+send weights to 222.201.187.52:8008, cost=0.20575976371765137
+172.21.0.1 - - [23/May/2025 08:06:54] "POST //gossip HTTP/1.1" 200 -
+Train: loss=0.3535720109939575, round=5,
+Aggregate: accuracy=0.4655145106315613, round=5,
+gossip to 2_p1
+send weights to 222.201.187.52:8006, cost=0.48533058166503906
+172.21.0.1 - - [23/May/2025 08:07:06] "POST //gossip HTTP/1.1" 200 -
+Train: loss=0.2947235405445099, round=6,
+Aggregate: accuracy=0.7647598962783814, round=6,
+gossip to 2_n2
+send weights to 222.201.187.52:8008, cost=0.19613122940063477

@@ -1,0 +1,66 @@
+{
+  "experiment_timestamp": "20250827_164927",
+  "experiment_name": "new_heuristic_20250827_164927",
+  "creation_time": "2025-08-27T16:50:35.802779",
+  "algorithm_type": "new_heuristic_ppo",
+  "env_config": {
+    "num_physical_nodes": 10,
+    "max_virtual_nodes": 8,
+    "bandwidth_levels": 10,
+    "physical_cpu_range": [
+      50,
+      100
+    ],
+    "physical_memory_range": [
+      50,
+      100
+    ],
+    "physical_bandwidth_range": [
+      100,
+      1000
+    ],
+    "virtual_cpu_range": [
+      10,
+      50
+    ],
+    "virtual_memory_range": [
+      10,
+      50
+    ],
+    "virtual_bandwidth_range": [
+      10,
+      100
+    ],
+    "physical_connectivity_prob": 0.3,
+    "virtual_connectivity_prob": 0.4,
+    "virtual_nodes_range": [
+      3,
+      8
+    ],
+    "seed": 42,
+    "curriculum_enabled": true,
+    "heuristic_reward_weight": 0.4,
+    "enable_load_balance_reward": true,
+    "enable_resource_efficiency_reward": true,
+    "enable_progress_reward": true
+  },
+  "agent_config": {
+    "max_physical_nodes": 10,
+    "max_virtual_nodes": 8,
+    "bandwidth_levels": 10,
+    "hidden_dim": 128,
+    "lr": 0.0003
+  },
+  "training_config": {
+    "total_episodes": 4000,
+    "batch_size": 64,
+    "update_frequency": 64,
+    "print_frequency": 50,
+    "save_frequency": 300,
+    "evaluation_frequency": 200,
+    "enable_reward_weight_schedule": true,
+    "initial_heuristic_weight": 0.6,
+    "final_heuristic_weight": 0.2,
+    "weight_decay_episodes": 2000
+  }
+}

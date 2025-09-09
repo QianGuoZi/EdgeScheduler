@@ -1,0 +1,726 @@
+{
+  "algorithms": [
+    "PPO",
+    "PPO_balance",
+    "Heuristic",
+    "Random"
+  ],
+  "task_range": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "episodes_per_task_count": 30,
+  "base_seed": 42,
+  "temperature": 0.05,
+  "heuristic_type": "flexitask",
+  "ppo_env_type": "NewHeuristic",
+  "detailed_results": {
+    "3": {
+      "num_tasks": 3,
+      "ppo": {
+        "avg_reward": 11.221050233189592,
+        "std_reward": 1.0616573296966891,
+        "min_reward": 8.697494756066694,
+        "max_reward": 12.258940207463823,
+        "success_rate": 1.0,
+        "avg_steps": 9.0,
+        "load_balance": {
+          "mean": 0.20570859776902212,
+          "std": 0.023324281875890324,
+          "min": 0.16559715834019198,
+          "max": 0.2622235874043906
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.942294191919192,
+          "std": 0.1181551376555923,
+          "min": 0.6666666666666666,
+          "max": 1.0
+        }
+      },
+      "ppo_balance": {
+        "avg_reward": 0.9547040169876982,
+        "std_reward": 0.06843776771390157,
+        "min_reward": 0.8353624904229242,
+        "max_reward": 1.0657712433378106,
+        "success_rate": 1.0,
+        "avg_steps": 3.6333333333333333,
+        "load_balance": {
+          "mean": 0.20567755311524527,
+          "std": 0.02038239809268797,
+          "min": 0.16521674589191737,
+          "max": 0.2480082839057268
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.523611111111111,
+          "std": 0.2908009639208301,
+          "min": 0.0,
+          "max": 1.0
+        }
+      },
+      "heuristic": {
+        "avg_reward": 8.984195222453264,
+        "std_reward": 0.5845064928631558,
+        "min_reward": 7.945680631927124,
+        "max_reward": 10.347264982785697,
+        "success_rate": 1.0,
+        "avg_steps": 9.0,
+        "load_balance": {
+          "mean": 0.1816826773530851,
+          "std": 0.03226763957370655,
+          "min": 0.13166416541087234,
+          "max": 0.25115160946543374
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.5631550436213807,
+          "std": 0.0532194314856482,
+          "min": 0.45245499181669396,
+          "max": 0.6772690586249909
+        }
+      },
+      "random": {
+        "avg_reward": 5.603268043614182,
+        "std_reward": 2.6748761859046875,
+        "min_reward": 0.5090165819539652,
+        "max_reward": 10.67440379551723,
+        "success_rate": 0.6333333333333333,
+        "avg_steps": 6.8,
+        "load_balance": {
+          "mean": 0.48601682410803543,
+          "std": 0.3915491417035412,
+          "min": 0.13288864933861552,
+          "max": 1.0
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.2879442584942983,
+          "std": 0.24544956629128592,
+          "min": 0.0,
+          "max": 0.7470057354925775
+        }
+      },
+      "comparisons": {
+        "ppo_vs_heuristic": {
+          "reward_improvement": 2.2368550107363276,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_balance_vs_heuristic": {
+          "reward_improvement": -8.029491205465566,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_ppo_balance": {
+          "reward_improvement": 10.266346216201894,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_random": {
+          "reward_improvement": 5.61778218957541,
+          "success_rate_improvement": 0.3666666666666667
+        },
+        "ppo_balance_vs_random": {
+          "reward_improvement": -4.6485640266264845,
+          "success_rate_improvement": 0.3666666666666667
+        }
+      }
+    },
+    "4": {
+      "num_tasks": 4,
+      "ppo": {
+        "avg_reward": 17.15127906623185,
+        "std_reward": 1.6079072080523897,
+        "min_reward": 15.030661598387917,
+        "max_reward": 20.462833669166628,
+        "success_rate": 1.0,
+        "avg_steps": 13.533333333333333,
+        "load_balance": {
+          "mean": 0.2321719580161787,
+          "std": 0.020517475989399892,
+          "min": 0.17495784411004914,
+          "max": 0.26602512421241226
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.9830333036552793,
+          "std": 0.04372613946838228,
+          "min": 0.8220588235294117,
+          "max": 1.0
+        }
+      },
+      "ppo_balance": {
+        "avg_reward": 1.0584703128360102,
+        "std_reward": 0.06752546777213514,
+        "min_reward": 0.9397363053485791,
+        "max_reward": 1.204510419069185,
+        "success_rate": 1.0,
+        "avg_steps": 4.566666666666666,
+        "load_balance": {
+          "mean": 0.2037977222591022,
+          "std": 0.02047768549428745,
+          "min": 0.16551050807903078,
+          "max": 0.24289098231529013
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.4588888888888889,
+          "std": 0.22113902671351898,
+          "min": 0.0,
+          "max": 1.0
+        }
+      },
+      "heuristic": {
+        "avg_reward": 13.643199016287447,
+        "std_reward": 1.447737635453443,
+        "min_reward": 10.241143070364842,
+        "max_reward": 16.86512499857667,
+        "success_rate": 1.0,
+        "avg_steps": 13.333333333333334,
+        "load_balance": {
+          "mean": 0.22116617104250855,
+          "std": 0.023642262435374744,
+          "min": 0.18019897178985655,
+          "max": 0.26384126698170557
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.6485517415085368,
+          "std": 0.07362759458780838,
+          "min": 0.4485916893184335,
+          "max": 0.8312205819426615
+        }
+      },
+      "random": {
+        "avg_reward": 5.605996809851742,
+        "std_reward": 3.292553145444279,
+        "min_reward": 2.1243496698803375,
+        "max_reward": 12.872714241578933,
+        "success_rate": 0.26666666666666666,
+        "avg_steps": 6.8,
+        "load_balance": {
+          "mean": 0.7876965662889348,
+          "std": 0.35218216521813944,
+          "min": 0.18025860888525064,
+          "max": 1.0
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.11580652915175559,
+          "std": 0.1977264805265937,
+          "min": 0.0,
+          "max": 0.60492314566767
+        }
+      },
+      "comparisons": {
+        "ppo_vs_heuristic": {
+          "reward_improvement": 3.508080049944404,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_balance_vs_heuristic": {
+          "reward_improvement": -12.584728703451436,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_ppo_balance": {
+          "reward_improvement": 16.09280875339584,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_random": {
+          "reward_improvement": 11.545282256380109,
+          "success_rate_improvement": 0.7333333333333334
+        },
+        "ppo_balance_vs_random": {
+          "reward_improvement": -4.547526497015732,
+          "success_rate_improvement": 0.7333333333333334
+        }
+      }
+    },
+    "5": {
+      "num_tasks": 5,
+      "ppo": {
+        "avg_reward": 23.526527166566684,
+        "std_reward": 3.1150335540120917,
+        "min_reward": 17.976663755824095,
+        "max_reward": 27.461916583918406,
+        "success_rate": 1.0,
+        "avg_steps": 19.333333333333332,
+        "load_balance": {
+          "mean": 0.24664175254489917,
+          "std": 0.01738654994672766,
+          "min": 0.21163689146944642,
+          "max": 0.2805260342669452
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.9435548232145236,
+          "std": 0.10183244540013994,
+          "min": 0.652046783625731,
+          "max": 1.0
+        }
+      },
+      "ppo_balance": {
+        "avg_reward": 1.1508641133362048,
+        "std_reward": 0.06943411220744151,
+        "min_reward": 1.011135585118631,
+        "max_reward": 1.2885151411364193,
+        "success_rate": 1.0,
+        "avg_steps": 5.433333333333334,
+        "load_balance": {
+          "mean": 0.21831171734458052,
+          "std": 0.020557469012861252,
+          "min": 0.18375669371812667,
+          "max": 0.25230671492869916
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.4392380952380952,
+          "std": 0.18751985684726338,
+          "min": 0.0,
+          "max": 0.7142857142857143
+        }
+      },
+      "heuristic": {
+        "avg_reward": 17.350579016135335,
+        "std_reward": 2.2513234826620696,
+        "min_reward": 12.443855684186655,
+        "max_reward": 22.047218183252525,
+        "success_rate": 1.0,
+        "avg_steps": 18.733333333333334,
+        "load_balance": {
+          "mean": 0.23760099714389357,
+          "std": 0.021940894021390527,
+          "min": 0.18783350173404517,
+          "max": 0.29791260071744946
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.5759809543349302,
+          "std": 0.06581904452226282,
+          "min": 0.4422232075052183,
+          "max": 0.6830835412468361
+        }
+      },
+      "random": {
+        "avg_reward": 7.346354621020361,
+        "std_reward": 4.622428612068844,
+        "min_reward": 2.108294990229098,
+        "max_reward": 16.162375379701164,
+        "success_rate": 0.3,
+        "avg_steps": 9.2,
+        "load_balance": {
+          "mean": 0.7632385529346145,
+          "std": 0.36197726516734946,
+          "min": 0.1632546511360567,
+          "max": 1.0
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.1324585251799061,
+          "std": 0.2044499595205095,
+          "min": 0.0,
+          "max": 0.5633111201777052
+        }
+      },
+      "comparisons": {
+        "ppo_vs_heuristic": {
+          "reward_improvement": 6.175948150431349,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_balance_vs_heuristic": {
+          "reward_improvement": -16.19971490279913,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_ppo_balance": {
+          "reward_improvement": 22.37566305323048,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_random": {
+          "reward_improvement": 16.180172545546323,
+          "success_rate_improvement": 0.7
+        },
+        "ppo_balance_vs_random": {
+          "reward_improvement": -6.195490507684156,
+          "success_rate_improvement": 0.7
+        }
+      }
+    },
+    "6": {
+      "num_tasks": 6,
+      "ppo": {
+        "avg_reward": 30.397480726260063,
+        "std_reward": 3.3697619715027276,
+        "min_reward": 21.988828195833953,
+        "max_reward": 37.63802543551137,
+        "success_rate": 1.0,
+        "avg_steps": 25.266666666666666,
+        "load_balance": {
+          "mean": 0.26247691215158075,
+          "std": 0.01593258087099487,
+          "min": 0.2219409521877005,
+          "max": 0.2881975986246008
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.9432510778117504,
+          "std": 0.077143759948287,
+          "min": 0.7456790123456789,
+          "max": 1.0
+        }
+      },
+      "ppo_balance": {
+        "avg_reward": 1.1809292555086535,
+        "std_reward": 0.3641980296628908,
+        "min_reward": -0.7361840443510472,
+        "max_reward": 1.4140919858323335,
+        "success_rate": 0.9666666666666667,
+        "avg_steps": 6.366666666666666,
+        "load_balance": {
+          "mean": 0.2395068867625443,
+          "std": 0.1425200631644412,
+          "min": 0.16833034614501102,
+          "max": 1.0
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.39009571909571916,
+          "std": 0.14764504885852622,
+          "min": 0.0,
+          "max": 0.6363636363636362
+        }
+      },
+      "heuristic": {
+        "avg_reward": 23.094955826862243,
+        "std_reward": 2.3351749199571126,
+        "min_reward": 17.22774542020443,
+        "max_reward": 26.57481456930675,
+        "success_rate": 1.0,
+        "avg_steps": 25.533333333333335,
+        "load_balance": {
+          "mean": 0.26562352989932125,
+          "std": 0.02043593460987043,
+          "min": 0.23419874487354606,
+          "max": 0.3108125793013089
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.5818148011208365,
+          "std": 0.05823056760680429,
+          "min": 0.4538229108216577,
+          "max": 0.6798268125787506
+        }
+      },
+      "random": {
+        "avg_reward": 8.373899540189306,
+        "std_reward": 6.272925174421994,
+        "min_reward": 3.2498607309067844,
+        "max_reward": 28.42794010437707,
+        "success_rate": 0.2,
+        "avg_steps": 10.066666666666666,
+        "load_balance": {
+          "mean": 0.8477975025817713,
+          "std": 0.3044928697956191,
+          "min": 0.21117941516197236,
+          "max": 1.0
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.09836621238263416,
+          "std": 0.2000028488165295,
+          "min": 0.0,
+          "max": 0.6238597517206264
+        }
+      },
+      "comparisons": {
+        "ppo_vs_heuristic": {
+          "reward_improvement": 7.30252489939782,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_balance_vs_heuristic": {
+          "reward_improvement": -21.91402657135359,
+          "success_rate_improvement": -0.033333333333333326
+        },
+        "ppo_vs_ppo_balance": {
+          "reward_improvement": 29.21655147075141,
+          "success_rate_improvement": 0.033333333333333326
+        },
+        "ppo_vs_random": {
+          "reward_improvement": 22.023581186070757,
+          "success_rate_improvement": 0.8
+        },
+        "ppo_balance_vs_random": {
+          "reward_improvement": -7.192970284680653,
+          "success_rate_improvement": 0.7666666666666666
+        }
+      }
+    },
+    "7": {
+      "num_tasks": 7,
+      "ppo": {
+        "avg_reward": 37.63672353437334,
+        "std_reward": 4.929579284152262,
+        "min_reward": 26.398511688761573,
+        "max_reward": 49.483152827069645,
+        "success_rate": 1.0,
+        "avg_steps": 31.866666666666667,
+        "load_balance": {
+          "mean": 0.2675254390058198,
+          "std": 0.02352239631065761,
+          "min": 0.2118562542963242,
+          "max": 0.3172668558057883
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.9248688036244729,
+          "std": 0.09476470519387822,
+          "min": 0.6559082829080854,
+          "max": 1.0
+        }
+      },
+      "ppo_balance": {
+        "avg_reward": 1.3568417886700745,
+        "std_reward": 0.06345900808661045,
+        "min_reward": 1.2154363490010556,
+        "max_reward": 1.487504146685258,
+        "success_rate": 1.0,
+        "avg_steps": 7.6,
+        "load_balance": {
+          "mean": 0.21529301072711665,
+          "std": 0.02588039675621807,
+          "min": 0.14887219308650038,
+          "max": 0.2609530876021937
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.4687575387575387,
+          "std": 0.09661212458930318,
+          "min": 0.2000000000000001,
+          "max": 0.6833333333333333
+        }
+      },
+      "heuristic": {
+        "avg_reward": 27.876558338248522,
+        "std_reward": 3.097548946336773,
+        "min_reward": 22.74440778202108,
+        "max_reward": 35.647834884072324,
+        "success_rate": 1.0,
+        "avg_steps": 32.2,
+        "load_balance": {
+          "mean": 0.269161248999984,
+          "std": 0.020826241905356292,
+          "min": 0.22318531315538803,
+          "max": 0.3118467247238959
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.5642787316226766,
+          "std": 0.0576465784019769,
+          "min": 0.4569313847606241,
+          "max": 0.6811682116312042
+        }
+      },
+      "random": {
+        "avg_reward": 6.790242069353713,
+        "std_reward": 3.7929207997062004,
+        "min_reward": 2.108411788198156,
+        "max_reward": 20.52449000860384,
+        "success_rate": 0.06666666666666667,
+        "avg_steps": 8.466666666666667,
+        "load_balance": {
+          "mean": 0.9499439900833256,
+          "std": 0.18745180494896974,
+          "min": 0.21922958837132178,
+          "max": 1.0
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.028753134278080336,
+          "std": 0.10767405172118542,
+          "min": 0.0,
+          "max": 0.4483131165466265
+        }
+      },
+      "comparisons": {
+        "ppo_vs_heuristic": {
+          "reward_improvement": 9.760165196124817,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_balance_vs_heuristic": {
+          "reward_improvement": -26.519716549578447,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_ppo_balance": {
+          "reward_improvement": 36.279881745703264,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_random": {
+          "reward_improvement": 30.846481465019625,
+          "success_rate_improvement": 0.9333333333333333
+        },
+        "ppo_balance_vs_random": {
+          "reward_improvement": -5.433400280683639,
+          "success_rate_improvement": 0.9333333333333333
+        }
+      }
+    },
+    "8": {
+      "num_tasks": 8,
+      "ppo": {
+        "avg_reward": 45.96065096867312,
+        "std_reward": 7.058920549049351,
+        "min_reward": 33.11601633320648,
+        "max_reward": 57.08377760096904,
+        "success_rate": 1.0,
+        "avg_steps": 40.8,
+        "load_balance": {
+          "mean": 0.27674716764529383,
+          "std": 0.02286048706751141,
+          "min": 0.22258923824568605,
+          "max": 0.32653467746555503
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.8755145353085018,
+          "std": 0.10599644607906614,
+          "min": 0.6142104261796043,
+          "max": 1.0
+        }
+      },
+      "ppo_balance": {
+        "avg_reward": 1.3731057394172068,
+        "std_reward": 0.3283344574383666,
+        "min_reward": -0.3378119900845593,
+        "max_reward": 1.6488490877846007,
+        "success_rate": 0.9666666666666667,
+        "avg_steps": 8.4,
+        "load_balance": {
+          "mean": 0.2468309871407733,
+          "std": 0.14230361637335706,
+          "min": 0.17357965066812744,
+          "max": 1.0
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.46516388825599353,
+          "std": 0.12195071093525503,
+          "min": 0.0,
+          "max": 0.7105263157894737
+        }
+      },
+      "heuristic": {
+        "avg_reward": 32.394451605197716,
+        "std_reward": 3.510629644361986,
+        "min_reward": 24.628767647060513,
+        "max_reward": 40.10215905993358,
+        "success_rate": 1.0,
+        "avg_steps": 38.8,
+        "load_balance": {
+          "mean": 0.2721210160564276,
+          "std": 0.023076756506209835,
+          "min": 0.22134337717656077,
+          "max": 0.3117301961655453
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.5419370845634011,
+          "std": 0.05627580134649265,
+          "min": 0.39068598478554684,
+          "max": 0.6362113399400868
+        }
+      },
+      "random": {
+        "avg_reward": 8.3477513455536,
+        "std_reward": 4.397812073914888,
+        "min_reward": 4.635355829829871,
+        "max_reward": 30.53787477526373,
+        "success_rate": 0.03333333333333333,
+        "avg_steps": 9.0,
+        "load_balance": {
+          "mean": 0.9754304426138002,
+          "std": 0.13231111576303548,
+          "min": 0.2629132784140023,
+          "max": 1.0
+        },
+        "bandwidth_satisfaction": {
+          "mean": 0.017087922767629535,
+          "std": 0.09202128031527103,
+          "min": 0.0,
+          "max": 0.512637683028886
+        }
+      },
+      "comparisons": {
+        "ppo_vs_heuristic": {
+          "reward_improvement": 13.566199363475405,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_balance_vs_heuristic": {
+          "reward_improvement": -31.02134586578051,
+          "success_rate_improvement": -0.033333333333333326
+        },
+        "ppo_vs_ppo_balance": {
+          "reward_improvement": 44.587545229255916,
+          "success_rate_improvement": 0.033333333333333326
+        },
+        "ppo_vs_random": {
+          "reward_improvement": 37.61289962311952,
+          "success_rate_improvement": 0.9666666666666667
+        },
+        "ppo_balance_vs_random": {
+          "reward_improvement": -6.974645606136393,
+          "success_rate_improvement": 0.9333333333333333
+        }
+      }
+    }
+  },
+  "summary": {
+    "overall_performance": {
+      "ppo": {
+        "avg_reward": 27.648951949215775,
+        "avg_success_rate": 1.0
+      },
+      "ppo_balance": {
+        "avg_reward": 1.1791525377926415,
+        "avg_success_rate": 0.9888888888888889
+      },
+      "heuristic": {
+        "avg_reward": 20.557323170864088,
+        "avg_success_rate": 1.0
+      },
+      "random": {
+        "avg_reward": 7.011252071597151,
+        "avg_success_rate": 0.25
+      }
+    },
+    "rankings": {
+      "by_reward": [
+        [
+          "PPO",
+          27.648951949215775,
+          1.0
+        ],
+        [
+          "Heuristic",
+          20.557323170864088,
+          1.0
+        ],
+        [
+          "Random",
+          7.011252071597151,
+          0.25
+        ],
+        [
+          "PPO_balance",
+          1.1791525377926415,
+          0.9888888888888889
+        ]
+      ],
+      "by_success_rate": [
+        [
+          "PPO",
+          27.648951949215775,
+          1.0
+        ],
+        [
+          "Heuristic",
+          20.557323170864088,
+          1.0
+        ],
+        [
+          "PPO_balance",
+          1.1791525377926415,
+          0.9888888888888889
+        ],
+        [
+          "Random",
+          7.011252071597151,
+          0.25
+        ]
+      ]
+    },
+    "win_rates": {
+      "ppo_vs_heuristic": 1.0,
+      "ppo_balance_vs_heuristic": 0.0,
+      "ppo_vs_ppo_balance": 1.0,
+      "ppo_vs_random": 1.0,
+      "ppo_balance_vs_random": 0.0
+    }
+  }
+}

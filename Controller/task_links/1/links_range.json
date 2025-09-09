@@ -1,0 +1,26 @@
+{
+  "p1": [
+    {"dest": "n1", "bw_min": "5mbps", "bw_max": "10mbps"},
+    {"dest": "n4", "bw_min": "3mbps", "bw_max": "5mbps"}
+  ],
+  "n1": [
+    {"dest": "p1", "bw_min": "3mbps", "bw_max": "5mbps"},
+    {"dest": "n2", "bw_min": "3mbps", "bw_max": "5mbps"},
+    {"dest": "n3", "bw_min": "3mbps", "bw_max": "5mbps"},
+    {"dest": "n4", "bw_min": "3mbps", "bw_max": "5mbps"}
+  ],
+  "n2": [
+    {"dest": "n1", "bw": "1mbps", "bw_max": "2mbps"},
+    {"dest": "n3", "bw": "2mbps", "bw_max": "4mbps"},
+    {"dest": "n4", "bw": "3mbps", "bw_max": "5mbps"}
+  ],
+  "n3": [
+    {"dest": "n1", "bw": "4mbps", "bw_max": "6mbps"},
+    {"dest": "n2", "bw": "1mbps", "bw_max": "2mbps"}
+  ],
+  "n4": [
+    {"dest": "n1", "bw": "1mbps", "bw_max": "2mbps"},
+    {"dest": "n2", "bw": "5mbps", "bw_max": "7mbps"},
+    {"dest": "p1", "bw": "2mbps", "bw_max": "4mbps"}
+  ]
+}

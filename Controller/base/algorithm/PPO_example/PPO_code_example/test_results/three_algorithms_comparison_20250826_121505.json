@@ -1,0 +1,324 @@
+{
+  "algorithms": [
+    "PPO",
+    "Heuristic",
+    "Random"
+  ],
+  "virtual_nodes_range": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "episodes_per_node_count": 30,
+  "base_seed": 42,
+  "temperature": 0.05,
+  "heuristic_type": "naive",
+  "detailed_results": {
+    "3": {
+      "num_virtual_nodes": 3,
+      "ppo": {
+        "avg_reward": 9.681831545907833,
+        "std_reward": 0.5750160800765616,
+        "min_reward": 8.726490537331173,
+        "max_reward": 10.9179899284153,
+        "success_rate": 1.0,
+        "avg_steps": 9.0
+      },
+      "heuristic": {
+        "avg_reward": 5.719972094630441,
+        "std_reward": 0.4360951115766706,
+        "min_reward": 4.567410431120708,
+        "max_reward": 6.470585067858205,
+        "success_rate": 1.0,
+        "avg_steps": 9.0
+      },
+      "random": {
+        "avg_reward": 7.56899636044172,
+        "std_reward": 0.8893954148111686,
+        "min_reward": 6.200102931068646,
+        "max_reward": 9.672516994016402,
+        "success_rate": 1.0,
+        "avg_steps": 9.0
+      },
+      "comparisons": {
+        "ppo_vs_heuristic": {
+          "reward_improvement": 3.961859451277393,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_random": {
+          "reward_improvement": 2.112835185466113,
+          "success_rate_improvement": 0.0
+        },
+        "heuristic_vs_random": {
+          "reward_improvement": -1.8490242658112797,
+          "success_rate_improvement": 0.0
+        }
+      }
+    },
+    "4": {
+      "num_virtual_nodes": 4,
+      "ppo": {
+        "avg_reward": 14.239382151175754,
+        "std_reward": 1.1626465022755668,
+        "min_reward": 11.762970832217597,
+        "max_reward": 16.98183297944433,
+        "success_rate": 1.0,
+        "avg_steps": 14.066666666666666
+      },
+      "heuristic": {
+        "avg_reward": 8.3603442669819,
+        "std_reward": 0.8855102248801551,
+        "min_reward": 7.161399125031851,
+        "max_reward": 11.367378423215602,
+        "success_rate": 1.0,
+        "avg_steps": 13.8
+      },
+      "random": {
+        "avg_reward": 10.989241160905838,
+        "std_reward": 1.4312817816991918,
+        "min_reward": 7.771285992342011,
+        "max_reward": 14.277598574159239,
+        "success_rate": 1.0,
+        "avg_steps": 14.4
+      },
+      "comparisons": {
+        "ppo_vs_heuristic": {
+          "reward_improvement": 5.879037884193854,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_random": {
+          "reward_improvement": 3.250140990269916,
+          "success_rate_improvement": 0.0
+        },
+        "heuristic_vs_random": {
+          "reward_improvement": -2.6288968939239385,
+          "success_rate_improvement": 0.0
+        }
+      }
+    },
+    "5": {
+      "num_virtual_nodes": 5,
+      "ppo": {
+        "avg_reward": 19.42730541024052,
+        "std_reward": 1.7624002684097688,
+        "min_reward": 15.934933909530363,
+        "max_reward": 23.042422498052098,
+        "success_rate": 1.0,
+        "avg_steps": 20.133333333333333
+      },
+      "heuristic": {
+        "avg_reward": 10.964877884805052,
+        "std_reward": 0.8957880518482173,
+        "min_reward": 8.813093154366728,
+        "max_reward": 12.841624491144152,
+        "success_rate": 1.0,
+        "avg_steps": 20.0
+      },
+      "random": {
+        "avg_reward": 15.279678863368995,
+        "std_reward": 2.4664170856151806,
+        "min_reward": 10.729706938770864,
+        "max_reward": 21.7722093705068,
+        "success_rate": 1.0,
+        "avg_steps": 20.333333333333332
+      },
+      "comparisons": {
+        "ppo_vs_heuristic": {
+          "reward_improvement": 8.46242752543547,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_random": {
+          "reward_improvement": 4.1476265468715265,
+          "success_rate_improvement": 0.0
+        },
+        "heuristic_vs_random": {
+          "reward_improvement": -4.314800978563943,
+          "success_rate_improvement": 0.0
+        }
+      }
+    },
+    "6": {
+      "num_virtual_nodes": 6,
+      "ppo": {
+        "avg_reward": 24.370734946867973,
+        "std_reward": 2.154612134468922,
+        "min_reward": 20.081069203280087,
+        "max_reward": 28.949015108550128,
+        "success_rate": 1.0,
+        "avg_steps": 26.666666666666668
+      },
+      "heuristic": {
+        "avg_reward": 13.40125022374668,
+        "std_reward": 1.2300110064472987,
+        "min_reward": 11.1002539803339,
+        "max_reward": 16.45985015229437,
+        "success_rate": 1.0,
+        "avg_steps": 26.2
+      },
+      "random": {
+        "avg_reward": 19.351274751553664,
+        "std_reward": 2.1913937252298825,
+        "min_reward": 15.55110454863003,
+        "max_reward": 25.175590601684412,
+        "success_rate": 1.0,
+        "avg_steps": 27.533333333333335
+      },
+      "comparisons": {
+        "ppo_vs_heuristic": {
+          "reward_improvement": 10.969484723121292,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_random": {
+          "reward_improvement": 5.019460195314309,
+          "success_rate_improvement": 0.0
+        },
+        "heuristic_vs_random": {
+          "reward_improvement": -5.950024527806983,
+          "success_rate_improvement": 0.0
+        }
+      }
+    },
+    "7": {
+      "num_virtual_nodes": 7,
+      "ppo": {
+        "avg_reward": 31.496121953498918,
+        "std_reward": 3.101025311158952,
+        "min_reward": 25.717563613066606,
+        "max_reward": 36.86432525392402,
+        "success_rate": 1.0,
+        "avg_steps": 35.46666666666667
+      },
+      "heuristic": {
+        "avg_reward": 16.9533394213579,
+        "std_reward": 1.493130319840357,
+        "min_reward": 13.582755751667085,
+        "max_reward": 19.59348427428501,
+        "success_rate": 1.0,
+        "avg_steps": 35.4
+      },
+      "random": {
+        "avg_reward": 23.174153157136356,
+        "std_reward": 2.458969488258073,
+        "min_reward": 18.036812641649263,
+        "max_reward": 28.16668486122711,
+        "success_rate": 1.0,
+        "avg_steps": 34.266666666666666
+      },
+      "comparisons": {
+        "ppo_vs_heuristic": {
+          "reward_improvement": 14.542782532141018,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_random": {
+          "reward_improvement": 8.321968796362562,
+          "success_rate_improvement": 0.0
+        },
+        "heuristic_vs_random": {
+          "reward_improvement": -6.2208137357784565,
+          "success_rate_improvement": 0.0
+        }
+      }
+    },
+    "8": {
+      "num_virtual_nodes": 8,
+      "ppo": {
+        "avg_reward": 38.834008111178086,
+        "std_reward": 3.4801560904741105,
+        "min_reward": 29.279389709955897,
+        "max_reward": 43.966398605116424,
+        "success_rate": 1.0,
+        "avg_steps": 44.666666666666664
+      },
+      "heuristic": {
+        "avg_reward": 20.00902911694003,
+        "std_reward": 1.8801887756747135,
+        "min_reward": 15.86591420346087,
+        "max_reward": 23.849795478751275,
+        "success_rate": 1.0,
+        "avg_steps": 44.333333333333336
+      },
+      "random": {
+        "avg_reward": 28.986388845444747,
+        "std_reward": 2.2792069519064273,
+        "min_reward": 24.987448802796408,
+        "max_reward": 32.87424347249321,
+        "success_rate": 1.0,
+        "avg_steps": 43.2
+      },
+      "comparisons": {
+        "ppo_vs_heuristic": {
+          "reward_improvement": 18.824978994238055,
+          "success_rate_improvement": 0.0
+        },
+        "ppo_vs_random": {
+          "reward_improvement": 9.84761926573334,
+          "success_rate_improvement": 0.0
+        },
+        "heuristic_vs_random": {
+          "reward_improvement": -8.977359728504716,
+          "success_rate_improvement": 0.0
+        }
+      }
+    }
+  },
+  "summary": {
+    "overall_performance": {
+      "ppo": {
+        "avg_reward": 23.008230686478182,
+        "avg_success_rate": 1.0
+      },
+      "heuristic": {
+        "avg_reward": 12.568135501410334,
+        "avg_success_rate": 1.0
+      },
+      "random": {
+        "avg_reward": 17.55828885647522,
+        "avg_success_rate": 1.0
+      }
+    },
+    "rankings": {
+      "by_reward": [
+        [
+          "PPO",
+          23.008230686478182,
+          1.0
+        ],
+        [
+          "Random",
+          17.55828885647522,
+          1.0
+        ],
+        [
+          "Heuristic",
+          12.568135501410334,
+          1.0
+        ]
+      ],
+      "by_success_rate": [
+        [
+          "PPO",
+          23.008230686478182,
+          1.0
+        ],
+        [
+          "Heuristic",
+          12.568135501410334,
+          1.0
+        ],
+        [
+          "Random",
+          17.55828885647522,
+          1.0
+        ]
+      ]
+    },
+    "win_rates": {
+      "ppo_vs_heuristic": 1.0,
+      "ppo_vs_random": 1.0,
+      "heuristic_vs_random": 0.0
+    }
+  }
+}
