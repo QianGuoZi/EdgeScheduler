@@ -596,7 +596,7 @@ class SingleTestScheduler(object):
         
         # 创建PPO环境
         try:
-            env_type = "NewHeuristic"  # 默认使用NewHeuristic环境，可以根据需要修改
+            env_type = "NewHeuristic"  # 默认使用NewHeuristic环境
             env = self._make_ppo_env_with_virtual_work(virtual_work, seed=42, env_type=env_type)
             
             # 运行PPO Episode
