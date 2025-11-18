@@ -29,16 +29,16 @@ class MockController:
         
         # 创建10个物理节点，资源配置各不相同
         node_configs = [
-            ('node_01', 100, 200, 10, 20),   # 高性能节点
-            ('node_02', 80, 150, 15, 30),    # 中等性能节点
-            ('node_03', 120, 250, 20, 50),   # 高性能节点
-            ('node_04', 60, 120, 5, 15),     # 低性能节点
-            ('node_05', 90, 180, 25, 40),    # 中等性能节点
-            ('node_06', 110, 220, 30, 60),   # 高性能节点
-            ('node_07', 70, 140, 10, 25),    # 中低性能节点
-            ('node_08', 95, 190, 20, 35),    # 中等性能节点
-            ('node_09', 85, 170, 15, 30),    # 中等性能节点
-            ('node_10', 130, 280, 40, 80)    # 最高性能节点
+            ('node_01', 80, 100, 10, 20),   
+            ('node_02', 80, 100, 15, 30),    
+            ('node_03', 80, 100, 20, 50),   
+            ('node_04', 80, 100, 5, 15),    
+            ('node_05', 80, 100, 25, 40),    
+            ('node_06', 80, 100, 30, 45),   
+            ('node_07', 80, 100, 10, 25),    
+            ('node_08', 80, 100, 20, 35),    
+            ('node_09', 80, 100, 15, 30),    
+            ('node_10', 80, 100, 30, 40)
         ]
         
         for name, cpu, ram, cpu_used, ram_used in node_configs[:num_nodes]:
@@ -52,8 +52,8 @@ class MockController:
             for j, node2 in enumerate(nodes):
                 if i < j:  # 避免重复连接
                     # 随机生成带宽配置，模拟真实网络环境
-                    base_bw = 1000 + (i + j) * 100  # 基础带宽1000-2800 Mbps
-                    used_bw = 50 + (i * j) % 200     # 已用带宽50-250 Mbps
+                    base_bw = 200 + (i + j) * 10  # 基础带宽200-380 Mbps
+                    used_bw = 10 + (i * j) % 20     # 已用带宽10-30 Mbps
                     self.bandwidth_data.append((node1, node2, base_bw, used_bw))
     
     def iter_bandwidth(self):
@@ -82,7 +82,7 @@ def create_test_task_links(task_id, num_virtual_nodes=6):
             if i != j and (j == (i+1) % num_virtual_nodes or j == (i+2) % num_virtual_nodes):
                 # 随机生成带宽需求
                 bw_min = 5 + (i + j) % 10  # 5-15 Mbps
-                bw_max = bw_min + 5 + (i * j) % 10  # 比最小带宽高5-15 Mbps
+                bw_max = bw_min + 5 + (i * j) % 5  # 比最小带宽高5-10 Mbps
                 
                 links_data[node].append({
                     "dest": virtual_nodes[j],

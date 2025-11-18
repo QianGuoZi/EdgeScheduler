@@ -49,15 +49,37 @@ def route_heartbeat ():
 	it will deploy the container's tc settings.
 	"""
 	name = request.args.get ('name')
-	taskID = name.split("_")[0]
+	
+	# 添加调试和错误处理
+	if not name:
+		print("错误: heartbeat 请求中缺少 name 参数")
+		return 'Missing name parameter', 400
+	
+	try:
+		# 从节点名称中提取 taskID (格式: taskID_nodename)
+		taskID = name.split("_")[0]
+		print(f"收到节点 {name} 的心跳, taskID: {taskID}")
+	except Exception as e:
+		print(f"错误: 从节点名称 {name} 提取 taskID 失败: {str(e)}")
+		return 'Invalid name format', 400
+	
 	t_time = time.time ()
 	with lock:
 		# deploy the emulated node's tc settings.
 		if name not in heartbeat and name in tc_data:
+			print(f"首次收到节点 {name} 的心跳，开始部署 tc 设置")
 			ret = {}
 			deploy_emulated_tc (name, ret)
 			# this request can be received by controller/base/node.py, route_emulated_tc ().
-			requests.post ('http://' + ctl_addr + '/emulated/tc', data={'taskID': taskID,'data': json.dumps (ret)})
+			try:
+				print(f"发送 tc 响应到 controller: taskID={taskID}, data={ret}")
+				response = requests.post ('http://' + ctl_addr + '/emulated/tc', 
+				                         data={'taskID': taskID,'data': json.dumps (ret)})
+				print(f"Controller 响应状态码: {response.status_code}")
+				if response.status_code != 200:
+					print(f"Controller 响应内容: {response.text}")
+			except Exception as e:
+				print(f"发送 tc 响应到 controller 失败: {str(e)}")
 		heartbeat [name] = t_time
 	return ''
 
@@ -235,8 +257,8 @@ def route_emulated_build():
             print('Error: No tag provided')
             return '-1'
             
-        # 修改构建命令,指定正确的构建上下文路径
-        cmd = f'cd {task_dir} && sudo docker build -t {tag} .'
+        # 修改构建命令,指定正确的构建上下文路径和平台
+        cmd = f'cd {task_dir} && sudo docker build --platform linux/arm64 -t {tag} .'
         print(f'执行命令: {cmd}')
         
         p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT)
@@ -290,15 +312,32 @@ def route_emulated_launch ():
 	listen file from controller/base/node.py, launch_emulated ().
 	it will launch the yml file.
 	"""
+	print('===== route_emulated_launch 开始 =====')
+	print(f'request.form: {request.form}')
+	print(f'request.files: {request.files}')
+	
 	heartbeat.clear ()
 	taskID = request.form.get('taskID')
+	print(f'taskID: {taskID}, type: {type(taskID)}')
+	
+	if not taskID:
+		print('错误: taskID 为空')
+		return 'Error: taskID is required', 400
+		
+	yml_file = request.files.get('yml')
+	if not yml_file:
+		print('错误: yml 文件为空')
+		return 'Error: yml file is required', 400
+	
 	task_dir = os.path.join(dirname, taskID)
 	os.makedirs(task_dir, exist_ok=True)
 	filename = os.path.join (task_dir, hostname + '_' + str(taskID) + '.yml')
-	request.files.get ('yml').save (filename)
+	print(f'保存文件到: {filename}')
+	yml_file.save (filename)
 	cmd = 'sudo COMPOSE_HTTP_TIMEOUT=120 docker-compose -f ' + filename + ' up'
 	print (cmd)
 	sp.Popen (cmd, shell=True, stderr=sp.STDOUT)
+	print('===== route_emulated_launch 完成 =====')
 	return ''
 
 @app.route ('/emulated/stop', methods=['GET'])

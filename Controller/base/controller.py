@@ -432,19 +432,52 @@ class Controller(object):
             """初始化所有路由"""
             @self.flask.route('/emulated/tc', methods=['POST'])
             def route_emulated_tc():
-                taskID = int(request.form['taskID'])
-                data: Dict = json.loads(request.form['data'])
-                for name, ret in data.items():
-                    if 'msg' in ret:
-                        print('emulated node ' + name + ' tc failed, err:')
-                        print(ret['msg'])
-                    elif 'number' in ret:
-                        print('emulated node ' + name + ' tc succeed')
-                        with self.lock:
-                            self.task[taskID].deployedCount += int(ret['number'])
-                            if self.task[taskID].deployedCount == self.task[taskID].virtualLinkNumber:
-                                print('tc finish')
-                return ''
+                try:
+                    # 添加调试信息
+                    print(f"收到 /emulated/tc 请求")
+                    print(f"请求表单数据: {request.form}")
+                    
+                    # 检查必需的字段
+                    if 'taskID' not in request.form:
+                        print("错误: 请求中缺少 taskID 字段")
+                        return 'Missing taskID field', 400
+                    
+                    if 'data' not in request.form:
+                        print("错误: 请求中缺少 data 字段")
+                        return 'Missing data field', 400
+                    
+                    taskID = int(request.form['taskID'])
+                    data: Dict = json.loads(request.form['data'])
+                    
+                    print(f"处理任务 {taskID} 的 tc 响应")
+                    print(f"数据内容: {data}")
+                    
+                    for name, ret in data.items():
+                        if 'msg' in ret:
+                            print('emulated node ' + name + ' tc failed, err:')
+                            print(ret['msg'])
+                        elif 'number' in ret:
+                            print('emulated node ' + name + ' tc succeed')
+                            with self.lock:
+                                if taskID in self.task:
+                                    self.task[taskID].deployedCount += int(ret['number'])
+                                    if self.task[taskID].deployedCount == self.task[taskID].virtualLinkNumber:
+                                        print('tc finish')
+                                else:
+                                    print(f"警告: 任务 {taskID} 不存在于 self.task 中")
+                    return '', 200
+                    
+                except KeyError as e:
+                    print(f"KeyError: 缺少字段 {str(e)}")
+                    return f'Missing field: {str(e)}', 400
+                except ValueError as e:
+                    print(f"ValueError: {str(e)}")
+                    return f'Invalid value: {str(e)}', 400
+                except Exception as e:
+                    print(f"处理 /emulated/tc 请求时出错: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    return f'Internal error: {str(e)}', 500
 
     def __send_emulated_tc(self, taskID: int):
         """
@@ -526,13 +559,17 @@ class Controller(object):
                 raise FileNotFoundError(f"找不到YML文件: {yml_path}")
                 
             # 打开并发送文件
-            with open(yml_path, 'r') as f:
+            with open(yml_path, 'rb') as f:
                 print(f'正在发送请求到 {emulator.ipW}:{self.agentPort}')
+                print(f'taskID: {taskID}, type: {type(taskID)}')
+                print(f'发送数据: taskID={str(taskID)}')
+                filename = os.path.basename(yml_path)
                 response = send_data('POST',
                     '/emulated/launch',
                     emulator.ipW,
-                    self.agentPort,data={'taskID': taskID},
-                    files={'yml': f}
+                    self.agentPort,
+                    data={'taskID': str(taskID)},
+                    files={'yml': (filename, f, 'text/yaml')}
                 )
                 print(f'请求响应: {response}')
                 

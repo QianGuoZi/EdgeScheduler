@@ -1,0 +1,4 @@
+nodes,algorithm,L_load_balance,D_BW_satisfaction,mapping_success,total_reward
+3,PPO,0.2175,1.0000,True,11.5860
+8,PPO,0.2328,1.0000,True,24.0258
+16,PPO,0.2605,0.9755,True,49.0058

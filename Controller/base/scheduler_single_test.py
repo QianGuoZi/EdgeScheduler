@@ -270,6 +270,7 @@ class SingleTestScheduler(object):
                 D_BW = reward_result.get('D_BW', 0.0)
                 mapping_success = reward_result.get('mapping_success', False)
                 total_reward = reward_result.get('total_reward', 0.0)
+                print(f"   通过scheduler计算指标: L={L:.4f}, D_BW={D_BW:.4f}")
             except Exception as e:
                 print(f"⚠️  指标计算失败: {e}")
                 L = 0.0
@@ -286,6 +287,8 @@ class SingleTestScheduler(object):
         # 记录到文件
         with open(self.metrics_log_file, 'a') as f:
             f.write(f'{node_count},{algorithm},{L:.4f},{D_BW:.4f},{mapping_success},{total_reward:.4f}\n')
+        
+        print(f"📝 记录指标: nodes={node_count}, alg={algorithm}, L={L:.4f}, D_BW={D_BW:.4f}, success={mapping_success}, reward={total_reward:.4f}")
             
     def plot_load_history(self):
         """生成负载历史图表"""
@@ -325,9 +328,23 @@ class SingleTestScheduler(object):
             # 读取数据
             df = pd.read_csv(self.metrics_log_file)
             
+            print(f"📊 读取到 {len(df)} 条指标记录")
+            if len(df) > 0:
+                print(f"   算法类型: {df['algorithm'].unique()}")
+                print(f"   L 范围: [{df['L_load_balance'].min():.4f}, {df['L_load_balance'].max():.4f}]")
+                print(f"   D_BW 范围: [{df['D_BW_satisfaction'].min():.4f}, {df['D_BW_satisfaction'].max():.4f}]")
+            
             if len(df) == 0:
-                print("指标记录文件为空")
+                print("⚠️  指标记录文件为空")
                 return
+            
+            if len(df) < 2:
+                print(f"⚠️  数据点太少（只有 {len(df)} 个），建议至少有5个数据点才能生成有意义的图表")
+                print(f"   提示：请多运行几次调度以积累数据点")
+                # 仍然尝试绘制，但使用散点图
+                single_point = True
+            else:
+                single_point = False
             
             # 创建图表
             fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
@@ -340,47 +357,89 @@ class SingleTestScheduler(object):
                 alg_data = df[df['algorithm'] == alg]
                 color = colors[i % len(colors)]
                 
-                # 负载均衡度 L
-                ax1.plot(alg_data['nodes'], alg_data['L_load_balance'], 
-                        color=color, marker='o', label=f'{alg} L', linewidth=2)
-                
-                # 带宽满足度 D_BW
-                ax2.plot(alg_data['nodes'], alg_data['D_BW_satisfaction'], 
-                        color=color, marker='s', label=f'{alg} D_BW', linewidth=2)
-                
-                # 成功率
-                success_rate = alg_data['mapping_success'].rolling(window=5, min_periods=1).mean()
-                ax3.plot(alg_data['nodes'], success_rate, 
-                        color=color, marker='^', label=f'{alg} Success', linewidth=2)
-                
-                # 总奖励
-                ax4.plot(alg_data['nodes'], alg_data['total_reward'], 
-                        color=color, marker='d', label=f'{alg} Reward', linewidth=2)
+                # 根据数据点数量选择绘图方式
+                if len(alg_data) == 1:
+                    # 只有一个点，使用散点图并标注数值
+                    ax1.scatter(alg_data['nodes'], alg_data['L_load_balance'], 
+                              color=color, marker='o', s=200, label=f'{alg} L', zorder=5)
+                    for _, row in alg_data.iterrows():
+                        ax1.annotate(f"{row['L_load_balance']:.3f}", 
+                                   (row['nodes'], row['L_load_balance']),
+                                   textcoords="offset points", xytext=(0,10), ha='center')
+                    
+                    ax2.scatter(alg_data['nodes'], alg_data['D_BW_satisfaction'], 
+                              color=color, marker='s', s=200, label=f'{alg} D_BW', zorder=5)
+                    for _, row in alg_data.iterrows():
+                        ax2.annotate(f"{row['D_BW_satisfaction']:.3f}", 
+                                   (row['nodes'], row['D_BW_satisfaction']),
+                                   textcoords="offset points", xytext=(0,10), ha='center')
+                    
+                    ax3.scatter(alg_data['nodes'], alg_data['mapping_success'].astype(float), 
+                              color=color, marker='^', s=200, label=f'{alg} Success', zorder=5)
+                    
+                    ax4.scatter(alg_data['nodes'], alg_data['total_reward'], 
+                              color=color, marker='d', s=200, label=f'{alg} Reward', zorder=5)
+                    for _, row in alg_data.iterrows():
+                        ax4.annotate(f"{row['total_reward']:.3f}", 
+                                   (row['nodes'], row['total_reward']),
+                                   textcoords="offset points", xytext=(0,10), ha='center')
+                else:
+                    # 多个点，使用折线图
+                    ax1.plot(alg_data['nodes'], alg_data['L_load_balance'], 
+                            color=color, marker='o', label=f'{alg} L', linewidth=2, markersize=8)
+                    
+                    ax2.plot(alg_data['nodes'], alg_data['D_BW_satisfaction'], 
+                            color=color, marker='s', label=f'{alg} D_BW', linewidth=2, markersize=8)
+                    
+                    success_rate = alg_data['mapping_success'].rolling(window=5, min_periods=1).mean()
+                    ax3.plot(alg_data['nodes'], success_rate, 
+                            color=color, marker='^', label=f'{alg} Success', linewidth=2, markersize=8)
+                    
+                    ax4.plot(alg_data['nodes'], alg_data['total_reward'], 
+                            color=color, marker='d', label=f'{alg} Reward', linewidth=2, markersize=8)
             
             # 设置图表标题和标签
-            ax1.set_title('负载均衡度 L 历史', fontsize=14, fontweight='bold')
-            ax1.set_xlabel('节点数量')
-            ax1.set_ylabel('L 值')
+            data_count_info = f" (total {len(df)} data points)" if len(df) < 10 else ""
+            
+            ax1.set_title(f'L history{data_count_info}', fontsize=14, fontweight='bold')
+            ax1.set_xlabel('number of nodes')
+            ax1.set_ylabel('L')
             ax1.grid(True, alpha=0.3)
             ax1.legend()
+            # 设置合理的y轴范围
+            if len(df) > 0:
+                y_min, y_max = df['L_load_balance'].min(), df['L_load_balance'].max()
+                if y_min == y_max:
+                    ax1.set_ylim([max(0, y_min - 0.1), min(1, y_max + 0.1)])
             
-            ax2.set_title('带宽满足度 D_BW 历史', fontsize=14, fontweight='bold')
-            ax2.set_xlabel('节点数量')
-            ax2.set_ylabel('D_BW 值')
+            ax2.set_title(f'D_BW history{data_count_info}', fontsize=14, fontweight='bold')
+            ax2.set_xlabel('number of nodes')
+            ax2.set_ylabel('D_BW')
             ax2.grid(True, alpha=0.3)
             ax2.legend()
+            # 设置合理的y轴范围
+            if len(df) > 0:
+                y_min, y_max = df['D_BW_satisfaction'].min(), df['D_BW_satisfaction'].max()
+                if y_min == y_max:
+                    ax2.set_ylim([max(0, y_min - 0.1), min(1, y_max + 0.1)])
             
-            ax3.set_title('映射成功率历史', fontsize=14, fontweight='bold')
-            ax3.set_xlabel('节点数量')
-            ax3.set_ylabel('成功率')
+            ax3.set_title(f'success rate history{data_count_info}', fontsize=14, fontweight='bold')
+            ax3.set_xlabel('number of nodes')
+            ax3.set_ylabel('success rate')
             ax3.grid(True, alpha=0.3)
             ax3.legend()
+            ax3.set_ylim([-0.1, 1.1])
             
-            ax4.set_title('总奖励历史', fontsize=14, fontweight='bold')
-            ax4.set_xlabel('节点数量')
-            ax4.set_ylabel('奖励值')
+            ax4.set_title(f'reward history{data_count_info}', fontsize=14, fontweight='bold')
+            ax4.set_xlabel('number of nodes')
+            ax4.set_ylabel('reward value')
             ax4.grid(True, alpha=0.3)
             ax4.legend()
+            # 设置合理的y轴范围
+            if len(df) > 0:
+                y_min, y_max = df['total_reward'].min(), df['total_reward'].max()
+                if y_min == y_max:
+                    ax4.set_ylim([y_min - 0.1, y_max + 0.1])
             
             plt.tight_layout()
             
@@ -466,20 +525,23 @@ class SingleTestScheduler(object):
         # 创建虚拟工作
         virtual_work = self._create_virtual_work(taskId, links_data)
         
-        # 创建调度器
-        scheduler = NetworkScheduler(topology)
-        scheduler.add_virtual_work(virtual_work)
+        # 使用PPO代理进行调度决策（返回allocation和episode_info）
+        allocation, episode_info = self._run_ppo_scheduling_with_metrics(virtual_work)
         
-        # 使用PPO代理进行调度决策
-        allocation = self._run_ppo_scheduling(scheduler, virtual_work)
+        # 记录负载情况
+        if allocation:
+            self.record_load(self.node_count, allocation)
         
-        # 记录指标
-        self.record_metrics(
-            node_count=self.node_count + len(allocation),
-            algorithm='PPO',
-            scheduler=scheduler,
-            virtual_work=virtual_work
-        )
+        # 从episode_info中提取指标并记录
+        if episode_info:
+            self.record_metrics(
+                node_count=self.node_count,  # 使用当前的node_count
+                algorithm='PPO',
+                L=episode_info.get('load_balance_degree', 0.0),
+                D_BW=episode_info.get('bandwidth_satisfaction', 0.0),
+                mapping_success=episode_info.get('success', False),
+                total_reward=episode_info.get('total_reward', 0.0)
+            )
         
         return allocation
     
@@ -544,8 +606,8 @@ class SingleTestScheduler(object):
             self.idx_virtual_mapping[idx] = node_name
             
             # 设置资源需求（使用随机或固定值）
-            cpu_demand = 2  # 固定值，与原有逻辑保持一致
-            ram_demand = 5
+            cpu_demand = 15  # 固定值，与原有逻辑保持一致
+            ram_demand = 20
             virtual_work.set_node_requirement(idx, cpu_demand, ram_demand)
         
         # 设置虚拟链路需求
@@ -590,8 +652,8 @@ class SingleTestScheduler(object):
         
         return virtual_work
     
-    def _run_ppo_scheduling(self, scheduler: NetworkScheduler, virtual_work: VirtualWork) -> Dict:
-        """使用PPO代理进行调度决策，采用环境-代理交互模式"""
+    def _run_ppo_scheduling_with_metrics(self, virtual_work: VirtualWork) -> Tuple[Dict, Dict]:
+        """使用PPO代理进行调度决策，返回allocation和episode_info"""
         print("🤖 开始PPO环境-代理交互调度...")
         
         # 创建PPO环境
@@ -607,17 +669,27 @@ class SingleTestScheduler(object):
                 greedy=True
             )
             
+            L_val = episode_info.get('load_balance_degree', 0.0)
+            D_BW_val = episode_info.get('bandwidth_satisfaction', 0.0)
             print(f"📊 PPO调度结果: 奖励={total_reward:.3f}, 成功={success}, 步数={episode_info['steps']}")
+            print(f"   L={L_val if isinstance(L_val, (int, float)) else 0.0:.4f}, D_BW={D_BW_val if isinstance(D_BW_val, (int, float)) else 0.0:.4f}")
             
             # 从环境中提取分配结果
             allocation = self._extract_allocation_from_env(env, episode_info)
             
-            return allocation
+            return allocation, episode_info
             
         except Exception as e:
             print(f"❌ PPO环境调度失败，回退到启发式方法: {e}")
-            # 回退到原有的启发式方法
-            return self._run_heuristic_scheduling_fallback(scheduler, virtual_work)
+            import traceback
+            traceback.print_exc()
+            # 返回空分配和空指标
+            return {}, {}
+    
+    def _run_ppo_scheduling(self, scheduler: NetworkScheduler, virtual_work: VirtualWork) -> Dict:
+        """使用PPO代理进行调度决策，采用环境-代理交互模式（保留向后兼容）"""
+        allocation, _ = self._run_ppo_scheduling_with_metrics(virtual_work)
+        return allocation
     
     def _run_ppo_episode(self, env, agent: SimpleSequentialAgent, 
                         temperature: float = 0.1, max_steps: int = 50, 
@@ -657,18 +729,34 @@ class SingleTestScheduler(object):
             success = bool(done and total_reward > 0)
         
         # 计算L和D_BW指标
-        load_balance_degree = float('nan')
-        bandwidth_satisfaction = float('nan')
+        load_balance_degree = 0.0
+        bandwidth_satisfaction = 0.0
         
+        # 优先从环境的network_scheduler获取指标
         if (hasattr(env, 'network_scheduler') and env.network_scheduler is not None and 
             hasattr(env.network_scheduler, 'get_original_reward_components')):
             try:
                 if hasattr(env, 'virtual_work_obj') and env.virtual_work_obj is not None:
                     components = env.network_scheduler.get_original_reward_components(env.virtual_work_obj)
-                    load_balance_degree = components.get('L', float('nan'))
-                    bandwidth_satisfaction = components.get('D_BW', float('nan'))
+                    load_balance_degree = components.get('L', 0.0)
+                    bandwidth_satisfaction = components.get('D_BW', 0.0)
+                    print(f"   从环境获取指标: L={load_balance_degree:.4f}, D_BW={bandwidth_satisfaction:.4f}")
             except Exception as e:
-                print(f"Warning: Failed to calculate L and D_BW for PPO: {e}")
+                print(f"⚠️  从环境获取指标失败，尝试使用OriginalRewardCalculator: {e}")
+        
+        # 如果环境指标获取失败，使用OriginalRewardCalculator作为备用
+        if load_balance_degree == 0.0 and bandwidth_satisfaction == 0.0:
+            try:
+                if hasattr(env, 'network_scheduler') and hasattr(env, 'virtual_work_obj'):
+                    reward_result = self.reward_calculator.calculate_reward(
+                        env.network_scheduler, 
+                        env.virtual_work_obj
+                    )
+                    load_balance_degree = reward_result.get('L', 0.0)
+                    bandwidth_satisfaction = reward_result.get('D_BW', 0.0)
+                    print(f"   使用备用计算器获取指标: L={load_balance_degree:.4f}, D_BW={bandwidth_satisfaction:.4f}")
+            except Exception as e:
+                print(f"⚠️  备用指标计算也失败: {e}")
         
         episode_info.update({
             'steps': steps,
