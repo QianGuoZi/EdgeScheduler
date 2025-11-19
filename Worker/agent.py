@@ -124,8 +124,21 @@ def create_new_tc(prefix: str, nic: str, tc: Dict[str, str], tc_ip: Dict[str, st
     if not tc:
         return ''
 
-    cmd = ['%s tc qdisc add dev %s root handle 1: htb default 1' % (prefix, nic),
-           '%s tc class add dev %s parent 1: classid 1:1 htb rate 10gbps ceil 10gbps burst 15k' % (prefix, nic)]
+    # 使用 default 2 让未匹配流量走管理 class，避免被限速
+    cmd = ['%s tc qdisc add dev %s root handle 1: htb default 2' % (prefix, nic),
+           '%s tc class add dev %s parent 1: classid 1:1 htb rate 10gbps ceil 10gbps burst 1gb' % (prefix, nic),
+           # 为管理流量创建豁免class (高优先级，不限速) - 用于心跳、Controller通信、ARP等
+           '%s tc class add dev %s parent 1:1 classid 1:2 htb rate 10gbps ceil 10gbps burst 1gb' % (prefix, nic),
+           # 为 class 1:2 添加叶子 qdisc (pfifo)，用于实际排队发送数据包
+           '%s tc qdisc add dev %s parent 1:2 handle 20: pfifo limit 1000' % (prefix, nic),
+           # 添加匹配所有 IP 流量的 filter (prio 10, 低优先级) - 确保所有流量都有出路
+           '%s tc filter add dev %s protocol ip parent 1: prio 10 u32 match ip dst 0.0.0.0/0 flowid 1:2' % (prefix, nic),
+           # 为ICMP流量(ping)创建filter，使用prio 1(高优先级)
+           '%s tc filter add dev %s protocol ip parent 1: prio 1 u32 match ip protocol 1 0xff flowid 1:2' % (prefix, nic),
+           # 为到Agent的流量(端口3333)创建filter，使用prio 1(高优先级)
+           '%s tc filter add dev %s protocol ip parent 1: prio 1 u32 match ip dport 3333 0xffff flowid 1:2' % (prefix, nic),
+           # 为从外部访问容器的流量创建filter(端口范围8000-9000)，用于Controller访问
+           '%s tc filter add dev %s protocol ip parent 1: prio 1 u32 match ip sport 8000 0xf000 flowid 1:2' % (prefix, nic)]
     num = classNum.get(node_name,10)
     nodeset = set()
     if linkDict.get(node_name) != None:
@@ -134,8 +147,12 @@ def create_new_tc(prefix: str, nic: str, tc: Dict[str, str], tc_ip: Dict[str, st
         bw = tc[name]
         ip = tc_ip[name]
         port = tc_port[name]
+        # 创建限速 class，使用合理的 burst 值（至少 32KB）
         cmd.append('%s tc class add dev %s parent 1:1 classid ' % (prefix, nic)
-                   + '1:%d htb rate %s ceil %s burst 15k' % (num, bw, bw))
+                   + '1:%d htb rate %s ceil %s burst 32kb' % (num, bw, bw))
+        # 为每个限速 class 添加叶子 qdisc (pfifo)
+        cmd.append('%s tc qdisc add dev %s parent 1:%d handle %d0: pfifo limit 1000' % (prefix, nic, num, num))
+        # 创建 filter 匹配目标 IP 和端口
         cmd.append('%s tc filter add dev %s protocol ip parent 1: prio 2 u32 match ip dst ' % (prefix, nic)
                    + '%s/32 match ip dport %d 0xffff flowid 1:%d' % (ip, port, num))
         nodepair = classInfo(node_name,name)

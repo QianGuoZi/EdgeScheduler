@@ -127,7 +127,7 @@ class Scheduler(object):
             virtual_nodes.append({
                 'name': node_name,
                 # 'cpu': cpu_demand,
-                'cpu': 2,
+                'cpu': 1,
                 # 'ram': ram_demand
                 'ram': 5
             })

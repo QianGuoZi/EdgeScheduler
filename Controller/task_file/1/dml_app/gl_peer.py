@@ -38,7 +38,7 @@ test_labels: np.ndarray
 
 app = Flask (__name__)
 lock = threading.RLock ()
-executor = ThreadPoolExecutor (1)
+executor = ThreadPoolExecutor (4)  # 增加线程数，避免阻塞
 
 
 # if this is container, docker will send a GET to here every 30s

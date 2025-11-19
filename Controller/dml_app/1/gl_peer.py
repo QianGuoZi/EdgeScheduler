@@ -20,9 +20,19 @@ task_id = os.getenv('NET_TASK_ID')
 
 input_shape = nn.input_shape
 controller_path = os.path.abspath (os.path.join(dirname, '../..'))
-log_dir = os.path.abspath(os.path.join(controller_path, 'dml_file/log', task_id))
-os.makedirs(log_dir, exist_ok=True)
-log_file = os.path.abspath (os.path.join (controller_path, 'dml_file/log/', task_id, node_name + '.log'))
+
+# 从环境变量获取日志目录的时间戳部分
+log_dir_timestamp = os.getenv('NET_LOG_TIMESTAMP')
+if log_dir_timestamp:
+	# 使用容器内的路径，加上时间戳
+	log_dir = os.path.join('/home/qianguo/EdgeScheduler/Worker/dml_file/log', task_id, log_dir_timestamp)
+	os.makedirs(log_dir, exist_ok=True)
+	log_file = os.path.join(log_dir, node_name + '.log')
+else:
+	# 否则使用默认路径（向后兼容）
+	log_dir = os.path.join('/home/qianguo/EdgeScheduler/Worker/dml_file/log', task_id)
+	os.makedirs(log_dir, exist_ok=True)
+	log_file = os.path.join(log_dir, node_name + '.log')
 print ('log_file:', log_file)
 worker_utils.set_log (log_file)
 conf = {}
@@ -38,7 +48,7 @@ test_labels: np.ndarray
 
 app = Flask (__name__)
 lock = threading.RLock ()
-executor = ThreadPoolExecutor (1)
+executor = ThreadPoolExecutor (4)  # 增加线程数，避免阻塞
 
 
 # if this is container, docker will send a GET to here every 30s
@@ -130,7 +140,15 @@ def on_route_start ():
 def gossip ():
 	peer = dml_utils.random_selection (peer_list, 1)
 	worker_utils.log ('gossip to ' + peer [0])
-	dml_utils.send_weights (nn.model.get_weights (), '/gossip', peer, conf ['connect'])
+	try:
+		print(f'DEBUG: Starting send_weights to {peer[0]}')
+		print(f'DEBUG: peer address = {conf["connect"].get(peer[0], "NOT FOUND")}')
+		dml_utils.send_weights (nn.model.get_weights (), '/gossip', peer, conf ['connect'])
+		print(f'DEBUG: send_weights completed')
+	except Exception as e:
+		print(f'ERROR in gossip: {type(e).__name__}: {e}')
+		import traceback
+		traceback.print_exc()
 
 
 @app.route ('/gossip', methods=['POST'])
@@ -143,7 +161,11 @@ def route_gossip ():
 
 def on_route_gossip (received_weights):
 	with lock:
-		new_weights = np.add (nn.model.get_weights (), received_weights) / 2
+		# 逐层平均权重
+		current_weights = nn.model.get_weights()
+		new_weights = []
+		for cw, rw in zip(current_weights, received_weights):
+			new_weights.append((cw + rw) / 2)
 		dml_utils.assign_weights (nn.model, new_weights)
 
 		conf ['current_round'] += 1

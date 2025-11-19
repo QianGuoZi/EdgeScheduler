@@ -18,14 +18,24 @@ def send_data (method: str, path: str, address: str, port: int = None,
 	"""
 	if port:
 		address += ':' + str (port)
-	if method.upper () == 'GET':
-		res = requests.get ('http://' + address + '/' + path)
-		return res.text
-	elif method.upper () == 'POST':
-		res = requests.post ('http://' + address + '/' + path, data=data, files=files)
-		return res.text
-	else:
-		return 'err method ' + method
+	try:
+		if method.upper () == 'GET':
+			res = requests.get ('http://' + address + '/' + path, timeout=30)
+			return res.text
+		elif method.upper () == 'POST':
+			res = requests.post ('http://' + address + '/' + path, data=data, files=files, timeout=30)
+			return res.text
+		else:
+			return 'err method ' + method
+	except requests.exceptions.Timeout:
+		log(f'Request timeout: {method} http://{address}/{path}')
+		return 'timeout'
+	except requests.exceptions.ConnectionError as e:
+		log(f'Connection error: {method} http://{address}/{path}: {e}')
+		return 'connection_error'
+	except Exception as e:
+		log(f'Request failed: {method} http://{address}/{path}: {type(e).__name__}: {e}')
+		return 'error'
 
 
 def heartbeat (agent_address: str, node_name: str):

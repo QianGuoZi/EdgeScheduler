@@ -1,5 +1,6 @@
 import io
 import time
+import pickle
 
 import numpy as np
 
@@ -48,7 +49,8 @@ def test_on_batch (model, images, labels, batch_size):
 
 
 def parse_weights (weights):
-	w = np.load (weights, allow_pickle=True)
+	# 使用pickle来反序列化权重，与send_weights对应
+	w = pickle.load(weights)
 	return w
 
 
@@ -71,14 +73,18 @@ def assign_weights (model, weights):
 
 def send_weights (weights, path, node_list, connect, forward=None, layer=-1):
 	self = 0
-	np.save (write, weights)
+	print(f'DEBUG send_weights: Preparing to send to {node_list}')
+	# 使用pickle来序列化权重列表，而不是np.save
+	pickle.dump(weights, write)
 	write.seek (0)
 	for node in node_list:
+		print(f'DEBUG send_weights: Processing node {node}')
 		if node == 'self':
 			self = 1
 			continue
 		if node in connect:
 			addr = connect [node]
+			print(f'DEBUG send_weights: Found addr {addr} for {node}')
 			data = {'path': path, 'layer': str (layer)}
 			send_weights_helper (write, data, addr, is_forward=False)
 		elif forward:
@@ -86,9 +92,10 @@ def send_weights (weights, path, node_list, connect, forward=None, layer=-1):
 			data = {'node': node, 'path': path, 'layer': str (layer)}
 			send_weights_helper (write, data, addr, is_forward=True)
 		else:
-			Exception ('has not connect to ' + node)
+			raise Exception ('has not connect to ' + node)
 		write.seek (0)
 	write.truncate ()
+	print(f'DEBUG send_weights: Completed')
 	return self
 
 

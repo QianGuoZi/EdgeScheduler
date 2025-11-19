@@ -675,6 +675,14 @@ class Controller(object):
             if not task.wait_for_server():
                 raise Exception("任务服务器启动失败")
             print(f"任务 {taskID} 服务器启动成功")
+            
+            # 提前创建日志目录（带时间戳）
+            import time
+            log_timestamp = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+            log_folder = os.path.join(self.dirName, 'dml_file/log', str(taskID), log_timestamp)
+            os.makedirs(log_folder, exist_ok=True)
+            task.taskManager.logFileFolder = log_folder
+            print(f"日志目录已创建: {log_folder}")
 
             added_emulators = set()
 
@@ -688,6 +696,10 @@ class Controller(object):
                 en = self.add_emulated_node (node_name, taskID, '/home/qianguo/EdgeScheduler/Worker/dml_app/'+str(taskID),
                     ['python3', 'gl_peer.py'], 'task'+ '1' +':v1.0', cpu=node_info['cpu'], ram=node_info['ram'], unit='G', emulator=emu)
                 task.add_emulator_node(en)
+                # 添加日志目录时间戳环境变量
+                en.add_var({
+                    'NET_LOG_TIMESTAMP': log_timestamp
+                })
                 en.mount_local_path ('../dml_file', '/home/qianguo/EdgeScheduler/Worker/dml_file')
                 en.mount_nfs (nfsApp, '/home/qianguo/EdgeScheduler/Worker/dml_app')
                 en.mount_nfs (nfsDataset, '/home/qianguo/EdgeScheduler/Worker/dataset')
