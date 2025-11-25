@@ -104,12 +104,19 @@ class Scheduler(object):
         # node_count = 0
 
         for emulator in self.controller.emulator.values():
+            # 计算可用的CPU份数
+            available_cpu_shares = emulator.get_available_cpu_shares()
+            available_ram = emulator.ram - emulator.ramPreMap
             physical_nodes.append({
                 'name': emulator.nameW,
-                'cpu': emulator.cpu - emulator.cpuPreMap,
-                'ram': emulator.ram - emulator.ramPreMap
+                'cpu': available_cpu_shares,  # CPU份数
+                'ram': available_ram
             })
-            print(f"Emulator: {emulator.nameW}, CPU: {emulator.cpu - emulator.cpuPreMap}, RAM: {emulator.ram - emulator.ramPreMap}")
+            # 同时显示实际核心数以便调试
+            available_cores = emulator.get_available_cpu_cores()
+            print(f"Emulator: {emulator.nameW}, "
+                  f"CPU: {available_cpu_shares} shares ({available_cores:.2f} cores), "
+                  f"RAM: {available_ram} MB")
         
         for emu1, emu2, bw, used_bw in self.controller.iter_bandwidth():
             physical_links.append({
@@ -127,9 +134,9 @@ class Scheduler(object):
             virtual_nodes.append({
                 'name': node_name,
                 # 'cpu': cpu_demand,
-                'cpu': 1,
+                'cpu': 10,
                 # 'ram': ram_demand
-                'ram': 5
+                'ram': 30
             })
             print(f"Virtual Node: {node_name}, CPU: {cpu_demand}, RAM: {ram_demand}")
             for dest in connections:

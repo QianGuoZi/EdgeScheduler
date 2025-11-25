@@ -19,12 +19,12 @@ if __name__ == '__main__':
 	# emu1 = controller.add_emulator ('emulator-1', '100.68.1.51', cpu=128, ram=256, unit='G')
 	# emu2 = controller.add_emulator ('emulator-2', '222.201.187.52', cpu=128, ram=256, unit='G')
 	emu1 = controller.add_emulator ('emulator-1', '100.68.2.1', cpu=4, ram=256, unit='G')
-	emu2 = controller.add_emulator ('emulator-2', '100.68.1.3', cpu=4, ram=256, unit='G')
+	# emu2 = controller.add_emulator ('emulator-2', '100.68.1.3', cpu=4, ram=256, unit='G')
 	# emu3 = controller.add_emulator ('emulator-3', '100.68.2.2', cpu=128, ram=256, unit='G')
 	controller.send_emulator_info() # 发送模拟器信息
 	# 添加物理链路
-	controller.add_emulator_bw('emulator-1', 'emulator-2', bw=1000)  
-	controller.add_emulator_bw('emulator-2', 'emulator-1', bw=1000)
+	# controller.add_emulator_bw('emulator-1', 'emulator-2', bw=1000)  
+	# controller.add_emulator_bw('emulator-2', 'emulator-1', bw=1000)
 	# controller.add_emulator_bw('emulator-1', 'emulator-3', bw=1000)
 	# controller.add_emulator_bw('emulator-3', 'emulator-1', bw=1000)
 	# controller.add_emulator_bw('emulator-2', 'emulator-3', bw=1000)

@@ -288,7 +288,20 @@ class Controller(object):
         if self.deploy_thread.is_alive():
             self.deploy_thread.join()
 
-    def add_emulator(self, name: str, ip: str, cpu: int, ram: int, unit: str) -> Emulator:
+    def add_emulator(self, name: str, ip: str, cpu: int, ram: int, unit: str, cpu_granularity: float = 0.04) -> Emulator:
+        """添加模拟器
+        
+        Args:
+            name: 模拟器名称
+            ip: IP地址
+            cpu: CPU核心数
+            ram: 内存大小
+            unit: 内存单位 ('M' 或 'G')
+            cpu_granularity: CPU分配的最小粒度，默认0.04
+        
+        Returns:
+            Emulator对象
+        """
         assert name != '', Exception('name cannot be empty')
         assert name not in self.emulator, Exception(name + ' has been used')
         assert cpu > 0 and ram > 0, Exception('cpu or ram is not bigger than 0')
@@ -296,7 +309,7 @@ class Controller(object):
         if unit == 'G':
             ram *= 1024
         wid = self.__next_w_id()
-        e = Emulator(wid, name, ip, cpu, ram, self.ip)
+        e = Emulator(wid, name, ip, cpu, ram, self.ip, cpu_granularity)
         self.emulator[name] = e
         for tag in self.nfs.values():  # mount all nfs tags by default.
             e.mount_nfs(tag)
@@ -316,6 +329,23 @@ class Controller(object):
 
     def add_emulated_node(self, name: str, taskID: int,working_dir: str, cmd: List[str], image: str,
                           cpu: int, ram: int, unit: str, nic: str = 'eth0', emulator: Emulator = None) -> EmulatedNode:
+        """添加模拟节点
+        
+        Args:
+            name: 节点名称
+            taskID: 任务ID
+            working_dir: 工作目录
+            cmd: 启动命令
+            image: Docker镜像
+            cpu: CPU份数（注意：这是份数，不是核心数）
+            ram: 内存大小
+            unit: 内存单位 ('M' 或 'G')
+            nic: 网卡名称
+            emulator: 模拟器对象
+        
+        Returns:
+            EmulatedNode对象
+        """
         assert name != '', Exception('name cannot be empty')
         assert name not in self.eNode, Exception(name + ' has been used')
         assert name not in self.pNode, Exception(name + ' has been used')
@@ -325,6 +355,7 @@ class Controller(object):
             ram *= 1024
 
         if emulator:
+            # check_resource会自动使用emulator的cpu_granularity进行检查
             emulator.check_resource(name, cpu, ram)
         nid = self.__next_n_id()
         en = EmulatedNode(nid, name, taskID, nic, working_dir, cmd, self.nodePort, self.hostPort, image, cpu, ram)
@@ -394,6 +425,16 @@ class Controller(object):
         """
         for cs in self.task[taskID].emulator.values():
             cs.save_yml(self.dirName, taskID)
+    
+    def save_yml_with_cpus(self, taskID: int, cpu_granularity: float = 0.04):
+        """使用cpus参数保存yml文件，支持更细粒度的CPU分配
+        
+        Args:
+            taskID: 任务ID
+            cpu_granularity: CPU分配的最小粒度，默认0.04（即每份CPU占用0.04个核心）
+        """
+        for cs in self.task[taskID].emulator.values():
+            cs.save_yml_with_cpus(self.dirName, taskID, cpu_granularity)
     
     def save_node_info(self, taskID: int):
         """
@@ -656,9 +697,16 @@ class Controller(object):
             print(f'创建日志时出错: {str(e)}')
             return False
 
-    def deploy_task(self, taskID: int, allocation: Dict, build_emulated_env: bool = False):
+    def deploy_task(self, taskID: int, allocation: Dict, build_emulated_env: bool = False, use_cpus: bool = True, cpu_granularity: float = 0.04):
         """
         启动相应的容器
+        
+        Args:
+            taskID: 任务ID
+            allocation: 资源分配方案
+            build_emulated_env: 是否构建模拟环境
+            use_cpus: 是否使用cpus参数进行CPU分配（True使用cpus，False使用cpuset）
+            cpu_granularity: 当use_cpus=True时，CPU分配的最小粒度，默认0.04
         """
         try:
             # 挂载
@@ -730,7 +778,11 @@ class Controller(object):
 
             # 保存信息
             task.taskManager.load_node_info() # 保存节点信息到task
-            self.save_yml(taskID) # 保存yml文件到controller
+            # 根据use_cpus参数选择保存yml的方式
+            if use_cpus:
+                self.save_yml_with_cpus(taskID, cpu_granularity) # 使用cpus参数保存yml文件
+            else:
+                self.save_yml(taskID) # 使用cpuset参数保存yml文件（原有方式）
             self.save_node_info(taskID) # 保存节点信息到testbed
             # 修改
             self.send_tc(taskID) # 将tc信息发送给worker，没有的添加，有的更新

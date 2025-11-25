@@ -93,13 +93,14 @@ class Emulator(Worker):
     """
     可以部署多个emulatedNode
     """
-    def __init__(self, ID: int, name: str, ip: str, cpu: int, ram: int, ip_controller: str):
+    def __init__(self, ID: int, name: str, ip: str, cpu: int, ram: int, ip_controller: str, cpu_granularity: float = 0.04):
         super().__init__(ID, name, ip)
-        self.cpu: int = cpu  # cpu thread.
+        self.cpu: int = cpu  # cpu thread (physical cores).
         self.ram: int = ram  # MB of memory.
         self.ipController: str = ip_controller  # ip of the task controller.
-        self.cpuPreMap: int = 0  # allocated cpu.
+        self.cpuPreMap: int = 0  # allocated cpu shares (份数).
         self.ramPreMap: int = 0  # allocated ram.
+        self.cpu_granularity: float = cpu_granularity  # CPU分配的最小粒度，默认0.04
         self.nfs: List[Nfs] = []  # mounted nfs.
         self.eNode: Dict[str, EmulatedNode] = {}  # emulated node's name to emulated node object.
         #self.curr_cpu: int = 0	# 服务器目前用到的cpuId
@@ -109,22 +110,61 @@ class Emulator(Worker):
         self.check_network_range(nfs.subnet)
         self.nfs.append(nfs)
 
-    def check_resource(self, name: str, cpu: int, ram: int):
-        assert self.cpu - self.cpuPreMap >= cpu and self.ram - self.ramPreMap >= ram, Exception(
-            self.nameW + '\'s cpu or ram is not enough for ' + name)
+    def check_resource(self, name: str, cpu: int, ram: int, cpu_granularity: float = None):
+        """检查资源是否足够
+        
+        Args:
+            name: 节点名称
+            cpu: CPU份数
+            ram: 内存大小(MB)
+            cpu_granularity: CPU粒度，如果为None则使用emulator的默认粒度
+        """
+        if cpu_granularity is None:
+            cpu_granularity = self.cpu_granularity
+        
+        # 计算需要的实际CPU核心数
+        required_cpu_cores = cpu * cpu_granularity
+        # 计算当前已分配的实际CPU核心数
+        allocated_cpu_cores = self.cpuPreMap * cpu_granularity
+        # 计算剩余可用的CPU核心数
+        available_cpu_cores = self.cpu - allocated_cpu_cores
+        
+        assert available_cpu_cores >= required_cpu_cores and self.ram - self.ramPreMap >= ram, Exception(
+            f"{self.nameW}'s cpu or ram is not enough for {name}. "
+            f"Required: {required_cpu_cores:.2f} CPU cores ({cpu} shares), {ram}MB RAM. "
+            f"Available: {available_cpu_cores:.2f} CPU cores, {self.ram - self.ramPreMap}MB RAM.")
 
     def add_node(self, en: EmulatedNode):
         assert en.name not in self.eNode, Exception(en.name + ' has been added')
         en.ip = self.ipW
-        self.cpuPreMap += en.cpu
+        self.cpuPreMap += en.cpu  # 累加CPU份数
         self.ramPreMap += en.ram
         self.eNode[en.name] = en
 
     def delete_node(self, en: EmulatedNode):
         assert en.name in self.eNode, Exception(en.name + ' is not existed')
-        self.cpuPreMap -= en.cpu
+        self.cpuPreMap -= en.cpu  # 减少CPU份数
         self.ramPreMap -= en.ram
         del self.eNode[en.name]
+    
+    def get_available_cpu_shares(self) -> int:
+        """获取可用的CPU份数
+        
+        Returns:
+            可用的CPU份数（整数）
+        """
+        # 总核心数 / 粒度 = 总份数
+        total_shares = int(self.cpu / self.cpu_granularity)
+        return total_shares - self.cpuPreMap
+    
+    def get_available_cpu_cores(self) -> float:
+        """获取可用的实际CPU核心数
+        
+        Returns:
+            可用的CPU核心数（浮点数）
+        """
+        allocated_cores = self.cpuPreMap * self.cpu_granularity
+        return self.cpu - allocated_cores
     
     def save_yml(self, path: str, taskID: int):
         if not self.eNode:
@@ -172,6 +212,71 @@ class Emulator(Worker):
                     str_yml += '    command: ' + ' '.join(en.cmd) + '\n'
 
         # save as yml file
+        yml_name = os.path.join(path, self.nameW + '_' + str(taskID) + '.yml')
+        with open(yml_name, 'w') as f:
+            f.writelines(str_yml)
+
+    def save_yml_with_cpus(self, path: str, taskID: int, cpu_granularity: float = 0.04):
+        """使用cpus参数生成yml文件，支持更细粒度的CPU分配
+        
+        Args:
+            path: yml文件保存路径
+            taskID: 任务ID
+            cpu_granularity: CPU分配的最小粒度，默认0.04（即每份CPU占用0.04个核心）
+        """
+        if not self.eNode:
+            return
+        
+        str_yml = 'version: "2.1"\n'
+        if self.nfs:
+            str_yml += 'volumes:\n'
+            for nfs in self.nfs:
+                str_yml = str_yml \
+                          + '  ' + nfs.tag + ':\n' \
+                          + '    driver_opts:\n' \
+                          + '      type: "nfs"\n' \
+                          + '      o: "addr=' + self.ipController + ',ro"\n' \
+                          + '      device: ":' + nfs.path + '"\n'
+        
+        str_yml += 'services:\n'
+        for en in self.eNode.values():
+            if en.tid == taskID:
+                # 计算实际的CPU数量：en.cpu是份数，乘以粒度得到实际CPU核心数
+                actual_cpus = en.cpu * cpu_granularity
+                
+                str_yml = str_yml \
+                        + '  ' + en.name + ':\n' \
+                        + '    container_name: ' + en.name + '\n' \
+                        + '    image: ' + en.image + '\n' \
+                        + '    working_dir: ' + en.workingDir + '\n' \
+                        + '    stdin_open: true\n' \
+                        + '    tty: true\n' \
+                        + '    cap_add:\n' \
+                        + '      - NET_ADMIN\n' \
+                        + '    cpus: ' + str(actual_cpus) + '\n' \
+                        + '    mem_limit: ' + str(en.ram) + 'M\n'
+                
+                str_yml += '    environment:\n'
+                for key in en.variable:
+                    str_yml += '      - ' + key + '=' + en.variable[key] + '\n'
+                
+                str_yml = str_yml \
+                        + '    healthcheck:\n' \
+                        + '      test: curl -f http://localhost:' + str(en.nodePort) + '/hi\n'
+                
+                str_yml = str_yml \
+                        + '    ports:\n' \
+                        + '      - "' + str(en.hostPort) + ':' + str(en.nodePort) + '"\n'
+                
+                if en.volume:
+                    str_yml += '    volumes:\n'
+                    for v in en.volume:
+                        str_yml += '      - ' + v + ':' + en.volume[v] + '\n'
+                
+                if en.cmd:
+                    str_yml += '    command: ' + ' '.join(en.cmd) + '\n'
+
+        # save as yml file with _cpus suffix
         yml_name = os.path.join(path, self.nameW + '_' + str(taskID) + '.yml')
         with open(yml_name, 'w') as f:
             f.writelines(str_yml)
