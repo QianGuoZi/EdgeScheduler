@@ -1,4 +1,4 @@
-version: "2.1"
+version: "2.4"
 volumes:
   dml_app:
     driver_opts:
@@ -11,33 +11,6 @@ volumes:
       o: "addr=100.68.1.50,ro"
       device: ":/home/qianguo/Edge-Scheduler/Controller/dataset"
 services:
-  1_n2:
-    container_name: 1_n2
-    image: task1:v1.0
-    working_dir: /home/qianguo/EdgeScheduler/Worker/dml_app/1
-    stdin_open: true
-    tty: true
-    cap_add:
-      - NET_ADMIN
-    cpuset: 0-0
-    mem_limit: 5120M
-    environment:
-      - EDGE_TB_ID=3
-      - NET_NODE_NAME=1_n2
-      - NODE_PORT=4444
-      - NET_CTL_ADDRESS=100.68.1.50:3333
-      - NET_AGENT_ADDRESS=100.68.1.3:3333
-      - NET_TASK_ID=1
-      - NET_LOG_TIMESTAMP=2025-11-19-18-16-35
-    healthcheck:
-      test: curl -f http://localhost:4444/hi
-    ports:
-      - "8003:4444"
-    volumes:
-      - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
-      - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro
-      - dataset:/home/qianguo/EdgeScheduler/Worker/dataset/:ro
-    command: python3 gl_peer.py
   1_n4:
     container_name: 1_n4
     image: task1:v1.0
@@ -46,16 +19,16 @@ services:
     tty: true
     cap_add:
       - NET_ADMIN
-    cpuset: 1-1
-    mem_limit: 5120M
+    cpus: 1.96
+    mem_limit: 49152.0M
     environment:
       - EDGE_TB_ID=5
       - NET_NODE_NAME=1_n4
       - NODE_PORT=4444
       - NET_CTL_ADDRESS=100.68.1.50:3333
-      - NET_AGENT_ADDRESS=100.68.1.3:3333
+      - NET_AGENT_ADDRESS=100.68.2.6:3333
       - NET_TASK_ID=1
-      - NET_LOG_TIMESTAMP=2025-11-19-18-16-35
+      - NET_LOG_TIMESTAMP=2026-01-07-17-33-23
     healthcheck:
       test: curl -f http://localhost:4444/hi
     ports:

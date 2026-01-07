@@ -227,7 +227,8 @@ class Emulator(Worker):
         if not self.eNode:
             return
         
-        str_yml = 'version: "2.1"\n'
+        # 使用 version 2.2+ 以支持 cpus 选项
+        str_yml = 'version: "2.4"\n'
         if self.nfs:
             str_yml += 'volumes:\n'
             for nfs in self.nfs:

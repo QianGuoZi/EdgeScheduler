@@ -9,7 +9,7 @@ import torch
 import numpy as np
 
 # PPO相关导入
-sys.path.append('./algorithm/PPO_my')
+sys.path.append(os.path.join(os.path.dirname(__file__), 'algorithm/PPO_my'))
 from sequential_agent import SimpleSequentialAgent
 from network_scheduler import NetworkTopology, VirtualWork, NetworkScheduler
 from original_reward import OriginalRewardCalculator
