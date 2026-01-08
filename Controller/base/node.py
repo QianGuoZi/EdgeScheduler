@@ -68,6 +68,44 @@ class PhysicalNode(Node, Worker):
     def __init__(self):
         pass
 
+class BackgroundLoadNode:
+    """
+    用于模拟已有负载的容器，不参与实际任务计算
+    只占用资源，用于模拟emulator上的背景负载
+    """
+    def __init__(self, name: str, emulator_name: str, cpu: float, ram: int, image: str = "stress:latest"):
+        """
+        Args:
+            name: 负载容器的名称
+            emulator_name: 所属emulator的名称
+            cpu: CPU核心数（支持浮点数，如0.5表示半个核心）
+            ram: 内存大小(GB，整数)
+            image: Docker镜像，默认使用stress镜像
+        """
+        self.name: str = name
+        self.emulator_name: str = emulator_name
+        self.cpu: float = cpu  # CPU核心数
+        self.ram: int = ram  # GB of memory
+        self.image: str = image
+        self.is_running: bool = False
+    
+    def get_stress_command(self) -> List[str]:
+        """生成stress命令来占用CPU和内存
+        
+        Returns:
+            stress命令列表
+        """
+        # stress-ng命令: --cpu 使用的CPU数, --vm 使用的内存workers, --vm-bytes 每个worker的内存
+        # 使用timeout使其持续运行
+        return [
+            "stress-ng",
+            "--cpu", str(max(1, int(self.cpu))),  # 至少1个CPU worker
+            "--vm", "1",  # 1个内存worker
+            "--vm-bytes", f"{self.ram}G",  # 内存大小
+            "--timeout", "0"  # 0表示无限运行
+        ]
+
+
 class EmulatedNode(Node):
     """
     一个用容器实现的node，部署在emulator中
@@ -78,7 +116,7 @@ class EmulatedNode(Node):
         super().__init__(ID, name, taskID,'', nic, working_dir, cmd, node_port, base_host_port + ID)
         self.image: str = image  # Docker image.
         self.cpu = cpu  # cpu thread.
-        self.ram = ram  # MB of memory.
+        self.ram = ram  # GB of memory (整数).
         self.volume: Dict[str, str] = {}  # host path or nfs tag to node path.
 
     def mount_local_path(self, local_path: str, node_path: str):
@@ -96,13 +134,16 @@ class Emulator(Worker):
     def __init__(self, ID: int, name: str, ip: str, cpu: int, ram: int, ip_controller: str, cpu_granularity: float = 0.04):
         super().__init__(ID, name, ip)
         self.cpu: int = cpu  # cpu thread (physical cores).
-        self.ram: int = ram  # MB of memory.
+        self.ram: int = ram  # GB of memory (整数).
         self.ipController: str = ip_controller  # ip of the task controller.
         self.cpuPreMap: int = 0  # allocated cpu shares (份数).
         self.ramPreMap: int = 0  # allocated ram.
         self.cpu_granularity: float = cpu_granularity  # CPU分配的最小粒度，默认0.04
         self.nfs: List[Nfs] = []  # mounted nfs.
         self.eNode: Dict[str, EmulatedNode] = {}  # emulated node's name to emulated node object.
+        self.bgLoadNode: Dict[str, BackgroundLoadNode] = {}  # 背景负载容器
+        self.bgCpuUsed: float = 0.0  # 背景负载使用的CPU核心数
+        self.bgRamUsed: int = 0  # 背景负载使用的内存(GB)
         #self.curr_cpu: int = 0	# 服务器目前用到的cpuId
 
     def mount_nfs(self, nfs: Nfs):
@@ -116,7 +157,7 @@ class Emulator(Worker):
         Args:
             name: 节点名称
             cpu: CPU份数
-            ram: 内存大小(MB)
+            ram: 内存大小(GB，整数)
             cpu_granularity: CPU粒度，如果为None则使用emulator的默认粒度
         """
         if cpu_granularity is None:
@@ -124,15 +165,18 @@ class Emulator(Worker):
         
         # 计算需要的实际CPU核心数
         required_cpu_cores = cpu * cpu_granularity
-        # 计算当前已分配的实际CPU核心数
-        allocated_cpu_cores = self.cpuPreMap * cpu_granularity
+        # 计算当前已分配的实际CPU核心数（包括任务节点和背景负载）
+        allocated_cpu_cores = self.cpuPreMap * cpu_granularity + self.bgCpuUsed
         # 计算剩余可用的CPU核心数
         available_cpu_cores = self.cpu - allocated_cpu_cores
+        # 计算剩余可用内存（包括背景负载占用）
+        available_ram = self.ram - self.ramPreMap - self.bgRamUsed
         
-        assert available_cpu_cores >= required_cpu_cores and self.ram - self.ramPreMap >= ram, Exception(
+        assert available_cpu_cores >= required_cpu_cores and available_ram >= ram, Exception(
             f"{self.nameW}'s cpu or ram is not enough for {name}. "
-            f"Required: {required_cpu_cores:.2f} CPU cores ({cpu} shares), {ram}MB RAM. "
-            f"Available: {available_cpu_cores:.2f} CPU cores, {self.ram - self.ramPreMap}MB RAM.")
+            f"Required: {required_cpu_cores:.2f} CPU cores ({cpu} shares), {ram}GB RAM. "
+            f"Available: {available_cpu_cores:.2f} CPU cores, {available_ram}GB RAM. "
+            f"(Background load: {self.bgCpuUsed:.2f} CPU cores, {self.bgRamUsed}GB RAM)")
 
     def add_node(self, en: EmulatedNode):
         assert en.name not in self.eNode, Exception(en.name + ' has been added')
@@ -166,6 +210,71 @@ class Emulator(Worker):
         allocated_cores = self.cpuPreMap * self.cpu_granularity
         return self.cpu - allocated_cores
     
+    def add_background_load(self, bg_node: BackgroundLoadNode):
+        """添加背景负载容器
+        
+        Args:
+            bg_node: 背景负载节点对象
+        """
+        assert bg_node.name not in self.bgLoadNode, Exception(f"{bg_node.name} has been added")
+        # 检查资源是否足够
+        available_cpu = self.cpu - self.bgCpuUsed - (self.cpuPreMap * self.cpu_granularity)
+        available_ram = self.ram - self.bgRamUsed - self.ramPreMap
+        assert available_cpu >= bg_node.cpu, Exception(
+            f"{self.nameW}'s CPU is not enough for background load {bg_node.name}. "
+            f"Required: {bg_node.cpu}, Available: {available_cpu}")
+        assert available_ram >= bg_node.ram, Exception(
+            f"{self.nameW}'s RAM is not enough for background load {bg_node.name}. "
+            f"Required: {bg_node.ram}GB, Available: {available_ram}GB")
+        
+        self.bgLoadNode[bg_node.name] = bg_node
+        self.bgCpuUsed += bg_node.cpu
+        self.bgRamUsed += bg_node.ram
+    
+    def remove_background_load(self, name: str):
+        """移除背景负载容器
+        
+        Args:
+            name: 背景负载容器名称
+        """
+        assert name in self.bgLoadNode, Exception(f"{name} is not existed")
+        bg_node = self.bgLoadNode[name]
+        self.bgCpuUsed -= bg_node.cpu
+        self.bgRamUsed -= bg_node.ram
+        del self.bgLoadNode[name]
+    
+    def save_background_load_yml(self, path: str) -> str:
+        """生成背景负载的docker-compose yml文件
+        
+        Args:
+            path: yml文件保存路径
+            
+        Returns:
+            yml文件路径，如果没有背景负载则返回空字符串
+        """
+        if not self.bgLoadNode:
+            return ""
+        
+        str_yml = 'version: "2.4"\n'
+        str_yml += 'services:\n'
+        
+        for bg_node in self.bgLoadNode.values():
+            stress_cmd = bg_node.get_stress_command()
+            str_yml += f'  {bg_node.name}:\n'
+            str_yml += f'    container_name: {bg_node.name}\n'
+            str_yml += f'    image: {bg_node.image}\n'
+            str_yml += f'    cpus: {bg_node.cpu}\n'
+            str_yml += f'    mem_limit: {bg_node.ram}G\n'
+            str_yml += f'    restart: unless-stopped\n'
+            str_yml += f'    command: {" ".join(stress_cmd)}\n'
+        
+        # 保存yml文件
+        yml_name = os.path.join(path, f'{self.nameW}_bgload.yml')
+        with open(yml_name, 'w') as f:
+            f.writelines(str_yml)
+        
+        return yml_name
+    
     def save_yml(self, path: str, taskID: int):
         if not self.eNode:
             return
@@ -193,7 +302,7 @@ class Emulator(Worker):
                         + '    cap_add:\n' \
                         + '      - NET_ADMIN\n' \
                         + '    cpuset: ' + str(self.curr_cpu) + '-' + str(self.curr_cpu + en.cpu - 1) + '\n' \
-                        + '    mem_limit: ' + str(en.ram) + 'M\n'
+                        + '    mem_limit: ' + str(en.ram) + 'G\n'
                 self.curr_cpu += en.cpu
                 str_yml += '    environment:\n'
                 for key in en.variable:
@@ -255,7 +364,7 @@ class Emulator(Worker):
                         + '    cap_add:\n' \
                         + '      - NET_ADMIN\n' \
                         + '    cpus: ' + str(actual_cpus) + '\n' \
-                        + '    mem_limit: ' + str(en.ram) + 'M\n'
+                        + '    mem_limit: ' + str(en.ram) + 'G\n'
                 
                 str_yml += '    environment:\n'
                 for key in en.variable:

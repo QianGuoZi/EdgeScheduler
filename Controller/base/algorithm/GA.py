@@ -21,7 +21,7 @@ class NodeMappingGA:
         for _ in range(self.pop_size):
             individual = [random.randint(0, len(self.physical_nodes) - 1) for _ in self.virtual_nodes]
             population.append(individual)
-            print(f"Initialized individual: {individual}")
+            # print(f"Initialized individual: {individual}")
         return population
     
     def fitness(self, individual):
@@ -33,7 +33,7 @@ class NodeMappingGA:
         fitness_ram = 2 - ram_load if ram_load <= 1 else np.exp(penalty_coefficients['ram'] * (1 - ram_load))
         fitness_bw = 2 - bw_load if bw_load <= 1 else np.exp(penalty_coefficients['bw'] * (1 - bw_load))
         feasibility = 1 if all(load <= 1 for load in [cpu_load, ram_load, bw_load]) else 0
-        print(f"Individual: {individual}, CPU Load: {cpu_load}, RAM Load: {ram_load}, BW Load: {bw_load}, Fitness CPU: {fitness_cpu}, Fitness RAM: {fitness_ram}, Fitness BW: {fitness_bw}, Feasibility: {feasibility}")
+        # print(f"Individual: {individual}, CPU Load: {cpu_load}, RAM Load: {ram_load}, BW Load: {bw_load}, Fitness CPU: {fitness_cpu}, Fitness RAM: {fitness_ram}, Fitness BW: {fitness_bw}, Feasibility: {feasibility}")
         return fitness_cpu + fitness_ram + fitness_bw, feasibility
     
     def calculate_loads(self, individual):

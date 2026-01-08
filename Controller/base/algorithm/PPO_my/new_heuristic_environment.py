@@ -7,7 +7,11 @@
 
 import torch
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from network_scheduler import VirtualWork
+
 from sequential_environment import SequentialNetworkSchedulerEnvironment
 
 
@@ -33,6 +37,9 @@ class NewHeuristicEnvironment(SequentialNetworkSchedulerEnvironment):
                  virtual_nodes_range: Tuple[int, int] = (4, 6),
                  seed: int = None,
                  curriculum_enabled: bool = True,
+                 # 外部VirtualWork支持（用于调度模式）
+                 use_external_virtual_work: bool = False,
+                 external_virtual_work: Optional['VirtualWork'] = None,
                  # 轻量级启发式参数
                  heuristic_reward_weight: float = 0.3,
                  enable_load_balance_reward: bool = True,
@@ -54,7 +61,9 @@ class NewHeuristicEnvironment(SequentialNetworkSchedulerEnvironment):
             virtual_connectivity_prob=virtual_connectivity_prob,
             virtual_nodes_range=virtual_nodes_range,
             seed=seed,
-            curriculum_enabled=curriculum_enabled
+            curriculum_enabled=curriculum_enabled,
+            use_external_virtual_work=use_external_virtual_work,
+            external_virtual_work=external_virtual_work
         )
         
         # 轻量级启发式参数
@@ -436,9 +445,12 @@ class NewHeuristicEnvironment(SequentialNetworkSchedulerEnvironment):
         
         return summary
     
-    def reset(self):
-        """重置环境时清理历史记录"""
-        state = super().reset()
+    def reset(self, *args, **kwargs):
+        """重置环境时清理历史记录
+        
+        兼容父类的reset签名，以支持external_virtual_work等关键字参数
+        """
+        state = super().reset(*args, **kwargs)
         
         # 清理部分历史记录，保留一些用于趋势分析
         if len(self.load_balance_history) > 50:

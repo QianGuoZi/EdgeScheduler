@@ -3,7 +3,7 @@
 
 import torch
 import numpy as np
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Optional
 from network_scheduler import NetworkTopology, VirtualWork, NetworkScheduler
 import torch.nn as nn
 
@@ -29,7 +29,10 @@ class SequentialNetworkSchedulerEnvironment:
                  virtual_nodes_range: Tuple[int, int] = (4, 6),  # 从(3,4)增加到(4,6)
                  # 随机种子
                  seed: int = None,
-                 curriculum_enabled: bool = True):
+                 curriculum_enabled: bool = True,
+                 # 外部VirtualWork支持（用于调度模式）
+                 use_external_virtual_work: bool = False,  # 是否使用外部VirtualWork
+                 external_virtual_work: Optional[VirtualWork] = None):  # 外部VirtualWork对象
         
         # 设置随机种子
         if seed is not None:
@@ -95,6 +98,10 @@ class SequentialNetworkSchedulerEnvironment:
         self.max_difficulty = 2.0
         self.difficulty_adjustment_rate = 0.1
         
+        # 外部VirtualWork支持（用于调度模式）
+        self.use_external_virtual_work = use_external_virtual_work
+        self.external_virtual_work = external_virtual_work
+        
     def _set_random_seed(self, seed: int):
         """设置环境的随机种子"""
         import random
@@ -102,19 +109,137 @@ class SequentialNetworkSchedulerEnvironment:
         np.random.seed(seed)
         print(f"🔒 Sequential环境随机种子设置完成: {seed}")
     
-    def reset(self):
-        """重置环境，开始新的episode"""
-        # 在新episode开始前调整难度
-        self._adjust_difficulty()
+    def _convert_virtual_work_to_dict(self, virtual_work: VirtualWork) -> Dict:
+        """
+        将VirtualWork对象转换为环境需要的字典格式
+        
+        Args:
+            virtual_work: VirtualWork对象
+            
+        Returns:
+            {
+                'features': torch.Tensor,  # [num_nodes, 3] - CPU, Memory, AvgBandwidth
+                'edges': torch.Tensor,    # [2, num_edges]
+                'edge_features': torch.Tensor,  # [num_edges, 2] - min_bw, max_bw
+                'num_nodes': int
+            }
+        """
+        num_virtual_nodes = virtual_work.num_nodes
+        
+        # 1. 构建节点特征矩阵 [num_nodes, 3]
+        #    特征：CPU需求, 内存需求, 平均带宽需求
+        virtual_features = []
+        virtual_link_bandwidth_means = [0.0] * num_virtual_nodes
+        node_degree = [0] * num_virtual_nodes  # 记录每个节点的连接数（包括入边和出边）
+        
+        # 先计算每个节点的平均带宽需求
+        for link_req in virtual_work.link_requirements:
+            from_node = link_req['from']
+            to_node = link_req['to']
+            
+            # 使用两个方向的平均值
+            min_bw_1_to_2 = link_req['min_bandwidth_1_to_2']
+            max_bw_1_to_2 = link_req['max_bandwidth_1_to_2']
+            min_bw_2_to_1 = link_req['min_bandwidth_2_to_1']
+            max_bw_2_to_1 = link_req['max_bandwidth_2_to_1']
+            
+            avg_bw_1_to_2 = (min_bw_1_to_2 + max_bw_1_to_2) / 2
+            avg_bw_2_to_1 = (min_bw_2_to_1 + max_bw_2_to_1) / 2
+            
+            # 累加到源节点和目标节点（考虑双向）
+            if from_node < num_virtual_nodes:
+                virtual_link_bandwidth_means[from_node] += avg_bw_1_to_2
+                node_degree[from_node] += 1
+            if to_node < num_virtual_nodes:
+                virtual_link_bandwidth_means[to_node] += avg_bw_2_to_1
+                node_degree[to_node] += 1
+        
+        # 计算平均值
+        for i in range(num_virtual_nodes):
+            if node_degree[i] > 0:
+                virtual_link_bandwidth_means[i] /= node_degree[i]
+        
+        # 构建节点特征
+        for i in range(num_virtual_nodes):
+            if i in virtual_work.node_requirements:
+                cpu_demand = virtual_work.node_requirements[i]['cpu']
+                memory_demand = virtual_work.node_requirements[i]['memory']
+            else:
+                cpu_demand = 10  # 默认值
+                memory_demand = 30  # 默认值
+            
+            avg_bandwidth = virtual_link_bandwidth_means[i]
+            virtual_features.append([cpu_demand, memory_demand, avg_bandwidth])
+        
+        # 2. 构建边和边特征（支持双向带宽）
+        virtual_edges = []
+        virtual_edge_features = []
+        
+        for link_req in virtual_work.link_requirements:
+            from_node = link_req['from']
+            to_node = link_req['to']
+
+            # 方向1: from_node -> to_node，使用1_to_2的带宽范围
+            min_bandwidth_1_to_2 = link_req['min_bandwidth_1_to_2']
+            max_bandwidth_1_to_2 = link_req['max_bandwidth_1_to_2']
+            virtual_edges.append([from_node, to_node])
+            virtual_edge_features.append([min_bandwidth_1_to_2, max_bandwidth_1_to_2])
+            print(f"[VirtualWork转换] 边 {from_node}->{to_node}: 范围[{min_bandwidth_1_to_2}-{max_bandwidth_1_to_2}] mbps")
+
+            # 方向2: to_node -> from_node，使用2_to_1的带宽范围
+            min_bandwidth_2_to_1 = link_req['min_bandwidth_2_to_1']
+            max_bandwidth_2_to_1 = link_req['max_bandwidth_2_to_1']
+            virtual_edges.append([to_node, from_node])
+            virtual_edge_features.append([min_bandwidth_2_to_1, max_bandwidth_2_to_1])
+            print(f"[VirtualWork转换] 边 {to_node}->{from_node}: 范围[{min_bandwidth_2_to_1}-{max_bandwidth_2_to_1}] mbps")
+        
+        # 转换为tensor
+        virtual_edges_tensor = torch.tensor(virtual_edges, dtype=torch.long).t() if virtual_edges else torch.empty((2, 0), dtype=torch.long)
+        virtual_edge_features_tensor = torch.tensor(virtual_edge_features, dtype=torch.float32) if virtual_edge_features else torch.empty((0, 2), dtype=torch.float32)
+        
+        return {
+            'features': torch.tensor(virtual_features, dtype=torch.float32),
+            'edges': virtual_edges_tensor,
+            'edge_features': virtual_edge_features_tensor,
+            'num_nodes': num_virtual_nodes
+        }
+    
+    def reset(self, external_virtual_work: Optional[VirtualWork] = None):
+        """
+        重置环境，开始新的episode
+        
+        Args:
+            external_virtual_work: 外部传入的VirtualWork对象（可选）
+                                 如果提供且use_external_virtual_work=True，则使用它
+        """
+        # 在新episode开始前调整难度（仅在训练模式下）
+        if not self.use_external_virtual_work:
+            self._adjust_difficulty()
         
         self.current_step = 0
         self.current_virtual_node = 0
         self.current_link_index = 0
         self.mapping_phase = True
         
-        # 生成网络状态（会受到难度调整的影响）
+        # 生成物理网络状态（总是随机生成）
         self.physical_state = self._generate_physical_state()
-        self.virtual_work = self._generate_virtual_work()
+        
+        # 根据模式决定使用外部VirtualWork还是随机生成
+        if self.use_external_virtual_work:
+            # 调度模式：使用外部VirtualWork
+            if external_virtual_work is not None:
+                # 优先使用reset时传入的VirtualWork
+                self.virtual_work = self._convert_virtual_work_to_dict(external_virtual_work)
+            elif self.external_virtual_work is not None:
+                # 使用初始化时设置的VirtualWork
+                self.virtual_work = self._convert_virtual_work_to_dict(self.external_virtual_work)
+            else:
+                # 如果没有外部VirtualWork，回退到随机生成
+                print("⚠️  调度模式但未提供VirtualWork，回退到随机生成")
+                self.virtual_work = self._generate_virtual_work()
+        else:
+            # 训练模式：随机生成VirtualWork
+            self.virtual_work = self._generate_virtual_work()
         
         # 初始化部分决策结果
         num_virtual_nodes = self.virtual_work['num_nodes']

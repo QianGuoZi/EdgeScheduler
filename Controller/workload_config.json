@@ -1,0 +1,108 @@
+{
+  "description": "模拟各emulator上已有负载的配置文件",
+  "workloads": {
+    "emulator-1": {
+      "cpu": 0.5,
+      "ram": 4,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-3": {
+      "cpu": 0.5,
+      "ram": 2,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-4": {
+      "cpu": 0.5,
+      "ram": 8,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-5": {
+      "cpu": 0.5,
+      "ram": 6,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-10": {
+      "cpu": 0.5,
+      "ram": 10,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    }
+  },
+  "links": {
+    "emulator-1": [
+      {
+        "dest": "emulator-3",
+        "bw": "100mbps"
+      },
+      {
+        "dest": "emulator-4",
+        "bw": "150mbps"
+      }
+    ],
+    "emulator-3": [
+      {
+        "dest": "emulator-1",
+        "bw": "100mbps"
+      },
+      {
+        "dest": "emulator-4",
+        "bw": "120mbps"
+      },
+      {
+        "dest": "emulator-5",
+        "bw": "80mbps"
+      }
+    ],
+    "emulator-4": [
+      {
+        "dest": "emulator-1",
+        "bw": "150mbps"
+      },
+      {
+        "dest": "emulator-3",
+        "bw": "120mbps"
+      },
+      {
+        "dest": "emulator-5",
+        "bw": "200mbps"
+      },
+      {
+        "dest": "emulator-10",
+        "bw": "180mbps"
+      }
+    ],
+    "emulator-5": [
+      {
+        "dest": "emulator-3",
+        "bw": "80mbps"
+      },
+      {
+        "dest": "emulator-4",
+        "bw": "200mbps"
+      },
+      {
+        "dest": "emulator-10",
+        "bw": "90mbps"
+      }
+    ],
+    "emulator-10": [
+      {
+        "dest": "emulator-4",
+        "bw": "180mbps"
+      },
+      {
+        "dest": "emulator-5",
+        "bw": "90mbps"
+      }
+    ]
+  }
+}

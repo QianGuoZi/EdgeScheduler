@@ -420,4 +420,121 @@ def route_emulated_reset ():
 	return ''
 
 
+# ===================== 背景负载相关路由 =====================
+
+@app.route('/bgload/launch', methods=['POST'])
+def route_bgload_launch():
+	"""
+	从controller接收背景负载yml文件，启动背景负载容器
+	这些容器用于模拟emulator上已有的负载
+	"""
+	print('===== route_bgload_launch 开始 =====')
+	print(f'request.files: {request.files}')
+	
+	yml_file = request.files.get('yml')
+	if not yml_file:
+		print('错误: yml 文件为空')
+		return 'Error: yml file is required', 400
+	
+	# 保存yml文件到bgload目录
+	bgload_dir = os.path.join(dirname, 'bgload')
+	os.makedirs(bgload_dir, exist_ok=True)
+	filename = os.path.join(bgload_dir, hostname + '_bgload.yml')
+	print(f'保存文件到: {filename}')
+	yml_file.save(filename)
+	
+	# 使用docker-compose启动背景负载容器（后台运行，使用-d参数）
+	cmd = f'sudo COMPOSE_HTTP_TIMEOUT=120 docker-compose -f {filename} up -d'
+	print(cmd)
+	p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT)
+	msg = p.communicate()[0].decode()
+	print(f'启动结果: {msg}')
+	
+	print('===== route_bgload_launch 完成 =====')
+	return ''
+
+
+@app.route('/bgload/stop', methods=['GET'])
+def route_bgload_stop():
+	"""
+	停止背景负载容器
+	"""
+	print('===== route_bgload_stop 开始 =====')
+	
+	bgload_dir = os.path.join(dirname, 'bgload')
+	filename = os.path.join(bgload_dir, hostname + '_bgload.yml')
+	
+	if not os.path.exists(filename):
+		print(f'背景负载yml文件不存在: {filename}')
+		return 'No background load yml file found', 404
+	
+	cmd = f'sudo docker-compose -f {filename} stop'
+	print(cmd)
+	p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT)
+	msg = p.communicate()[0].decode()
+	print(f'停止结果: {msg}')
+	
+	print('===== route_bgload_stop 完成 =====')
+	return ''
+
+
+@app.route('/bgload/clear', methods=['GET'])
+def route_bgload_clear():
+	"""
+	清理背景负载容器（停止并删除容器和yml文件）
+	"""
+	print('===== route_bgload_clear 开始 =====')
+	
+	bgload_dir = os.path.join(dirname, 'bgload')
+	filename = os.path.join(bgload_dir, hostname + '_bgload.yml')
+	
+	if not os.path.exists(filename):
+		print(f'背景负载yml文件不存在: {filename}')
+		return 'No background load yml file found', 404
+	
+	# 停止并删除容器
+	cmd = f'sudo docker-compose -f {filename} down -v'
+	print(cmd)
+	p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT)
+	msg = p.communicate()[0].decode()
+	print(f'清理结果: {msg}')
+	
+	# 删除yml文件
+	try:
+		os.remove(filename)
+		print(f'已删除yml文件: {filename}')
+	except Exception as e:
+		print(f'删除yml文件失败: {e}')
+	
+	print('===== route_bgload_clear 完成 =====')
+	return ''
+
+
+@app.route('/bgload/status', methods=['GET'])
+def route_bgload_status():
+	"""
+	获取背景负载容器的状态
+	"""
+	print('===== route_bgload_status 开始 =====')
+	
+	bgload_dir = os.path.join(dirname, 'bgload')
+	filename = os.path.join(bgload_dir, hostname + '_bgload.yml')
+	
+	if not os.path.exists(filename):
+		return json.dumps({'status': 'no_config', 'containers': []})
+	
+	# 获取容器状态
+	cmd = f'sudo docker-compose -f {filename} ps --format json'
+	p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT)
+	msg = p.communicate()[0].decode()
+	
+	try:
+		containers = json.loads(msg) if msg.strip() else []
+	except:
+		containers = []
+	
+	print('===== route_bgload_status 完成 =====')
+	return json.dumps({'status': 'ok', 'containers': containers})
+
+
 app.run (host='0.0.0.0', port=agent_port, threaded=True)

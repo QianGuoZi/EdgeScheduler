@@ -13,7 +13,7 @@ from .taskManger import TaskManager
 from flask import Flask, json, request
 from .link import VirtualLink
 from .nfs import Nfs
-from .node import EmulatedNode, Emulator, Node, PhysicalNode
+from .node import BackgroundLoadNode, EmulatedNode, Emulator, Node, PhysicalNode
 from .manager import Manager
 from .scheduler import Scheduler
 from .task import Task
@@ -88,8 +88,6 @@ class Controller(object):
         self.deploy_thread.daemon = True
         self.schedule_thread.start()
         self.deploy_thread.start()
-
-        self.__set_emulated_tc_listener()
 
     def __next_w_id(self):
         self.currWID += 1
@@ -288,7 +286,7 @@ class Controller(object):
         if self.deploy_thread.is_alive():
             self.deploy_thread.join()
 
-    def add_emulator(self, name: str, ip: str, cpu: int, ram: int, unit: str, cpu_granularity: float = 0.04) -> Emulator:
+    def add_emulator(self, name: str, ip: str, cpu: int, ram: int, unit: str = 'G', cpu_granularity: float = 0.04) -> Emulator:
         """添加模拟器
         
         Args:
@@ -296,7 +294,7 @@ class Controller(object):
             ip: IP地址
             cpu: CPU核心数
             ram: 内存大小
-            unit: 内存单位 ('M' 或 'G')
+            unit: 内存单位 ('M' 或 'G')，内部统一存储为GB
             cpu_granularity: CPU分配的最小粒度，默认0.04
         
         Returns:
@@ -306,8 +304,8 @@ class Controller(object):
         assert name not in self.emulator, Exception(name + ' has been used')
         assert cpu > 0 and ram > 0, Exception('cpu or ram is not bigger than 0')
         assert unit in ['M', 'G'], Exception(unit + ' is not in ["M", "G"]')
-        if unit == 'G':
-            ram *= 1024
+        if unit == 'M':
+            ram = ram // 1024  # 将MB转换为GB（整数）
         wid = self.__next_w_id()
         e = Emulator(wid, name, ip, cpu, ram, self.ip, cpu_granularity)
         self.emulator[name] = e
@@ -328,7 +326,7 @@ class Controller(object):
                       e.ipW, self.agentPort)
 
     def add_emulated_node(self, name: str, taskID: int,working_dir: str, cmd: List[str], image: str,
-                          cpu: int, ram: int, unit: str, nic: str = 'eth0', emulator: Emulator = None) -> EmulatedNode:
+                          cpu: int, ram: int, unit: str = 'G', nic: str = 'eth0', emulator: Emulator = None) -> EmulatedNode:
         """添加模拟节点
         
         Args:
@@ -339,7 +337,7 @@ class Controller(object):
             image: Docker镜像
             cpu: CPU份数（注意：这是份数，不是核心数）
             ram: 内存大小
-            unit: 内存单位 ('M' 或 'G')
+            unit: 内存单位 ('M' 或 'G')，内部统一存储为GB
             nic: 网卡名称
             emulator: 模拟器对象
         
@@ -351,8 +349,8 @@ class Controller(object):
         assert name not in self.pNode, Exception(name + ' has been used')
         assert cpu > 0 and ram > 0, Exception('cpu or ram is not bigger than 0')
         assert unit in ['M', 'G'], Exception(unit + ' is not in ["M", "G"]')
-        if unit == 'G':
-            ram *= 1024
+        if unit == 'M':
+            ram = ram // 1024  # 将MB转换为GB（整数）
 
         if emulator:
             # check_resource会自动使用emulator的cpu_granularity进行检查
@@ -460,7 +458,6 @@ class Controller(object):
             f.writelines(json.dumps(data, indent=2))
 
     def send_tc(self, taskID: int):
-        # self.__set_emulated_tc_listener()
         if self.task[taskID].virtualLinkNumber > 0:
             # send the tc settings to emulators.
             self.__send_emulated_tc(taskID)
@@ -468,57 +465,6 @@ class Controller(object):
             self.__send_physical_tc(taskID)
         else:
             print('tc finish')
-
-    def __set_emulated_tc_listener(self):
-            """初始化所有路由"""
-            @self.flask.route('/emulated/tc', methods=['POST'])
-            def route_emulated_tc():
-                try:
-                    # 添加调试信息
-                    print(f"收到 /emulated/tc 请求")
-                    print(f"请求表单数据: {request.form}")
-                    
-                    # 检查必需的字段
-                    if 'taskID' not in request.form:
-                        print("错误: 请求中缺少 taskID 字段")
-                        return 'Missing taskID field', 400
-                    
-                    if 'data' not in request.form:
-                        print("错误: 请求中缺少 data 字段")
-                        return 'Missing data field', 400
-                    
-                    taskID = int(request.form['taskID'])
-                    data: Dict = json.loads(request.form['data'])
-                    
-                    print(f"处理任务 {taskID} 的 tc 响应")
-                    print(f"数据内容: {data}")
-                    
-                    for name, ret in data.items():
-                        if 'msg' in ret:
-                            print('emulated node ' + name + ' tc failed, err:')
-                            print(ret['msg'])
-                        elif 'number' in ret:
-                            print('emulated node ' + name + ' tc succeed')
-                            with self.lock:
-                                if taskID in self.task:
-                                    self.task[taskID].deployedCount += int(ret['number'])
-                                    if self.task[taskID].deployedCount == self.task[taskID].virtualLinkNumber:
-                                        print('tc finish')
-                                else:
-                                    print(f"警告: 任务 {taskID} 不存在于 self.task 中")
-                    return '', 200
-                    
-                except KeyError as e:
-                    print(f"KeyError: 缺少字段 {str(e)}")
-                    return f'Missing field: {str(e)}', 400
-                except ValueError as e:
-                    print(f"ValueError: {str(e)}")
-                    return f'Invalid value: {str(e)}', 400
-                except Exception as e:
-                    print(f"处理 /emulated/tc 请求时出错: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
-                    return f'Internal error: {str(e)}', 500
 
     def __send_emulated_tc(self, taskID: int):
         """
@@ -660,6 +606,405 @@ class Controller(object):
             msg = p.communicate()[0].decode()
             assert path in msg and subnet in msg, Exception(
                 'share ' + path + ' to ' + subnet + ' failed')
+
+    def __send_physical_tc(self, taskID: int):
+        """
+        send the tc settings to physical nodes.
+        this request can be received by worker/agent.py, route_physical_tc ().
+        """
+        for pn in self.pNode.values():
+            if not pn.tc:
+                print('physical node ' + pn.name + ' tc succeed')
+                continue
+            data = {
+                'NET_NODE_NIC': pn.nic,
+                'NET_NODE_TC': pn.tc,
+                'NET_NODE_TC_IP': pn.tcIP,
+                'NET_NODE_TC_PORT': pn.tcPort
+            }
+            print('physical_tc_update: send to ' + pn.name)
+            res = send_data('POST', '/physical/tc', pn.ip, self.agentPort,
+                            data={'data': json.dumps(data)})
+            if res == '':
+                print('physical node ' + pn.name + ' tc succeed')
+                with self.lock:
+                    self.task[taskID].deployedCount += len(pn.tc)
+                    if self.task[taskID].deployedCount == self.task[taskID].virtualLinkNumber:
+                        print('tc finish')
+            else:
+                print('physical node ' + pn.name + ' tc failed, err:')
+                print(res)
+
+    def launch_all_emulated(self, taskID: int):
+        """
+        send the yml files to emulators to launch all emulated node and the dml application.
+        this request can be received by worker/agent.py, route_emulated_launch ().
+        """
+        tasks = []
+        for s in self.task[taskID].emulator.values():
+            if s.eNode:
+                print('launch_all_emulated: send to ' + s.nameW)
+                tasks.append(self.executor.submit(self.__launch_emulated, s, taskID, self.dirName))
+        wait(tasks, return_when=ALL_COMPLETED)
+
+    # def __launch_emulated(self, emulator: Emulator, taskID: int, path: str):
+    #     path = os.path.join(path, emulator.nameW + '_' + str(taskID) + '.yml')
+    #     print(f'launch_all_emulated: send to {emulator.nameW}, path: {path}, ip:{emulator.ipW}, port:{self.agentPort}')
+    #     with open(os.path.join(path, emulator.nameW + '_' + str(taskID) + '.yml'), 'r') as f:
+    #         send_data('POST', '/emulated/launch', emulator.ipW, self.agentPort, files={'yml': f})
+    def __launch_emulated(self, emulator: Emulator, taskID: int, path: str):
+        """启动单个模拟器的节点"""
+        try:
+            # 构造yml文件路径
+            yml_filename = f"{emulator.nameW}_{taskID}.yml"
+            yml_path = os.path.join(path, yml_filename)
+            
+            print(f'launch_all_emulated: 准备发送到 {emulator.nameW}')
+            print(f'文件路径: {yml_path}')
+            
+            # 检查文件是否存在
+            if not os.path.exists(yml_path):
+                raise FileNotFoundError(f"找不到YML文件: {yml_path}")
+                
+            # 打开并发送文件
+            with open(yml_path, 'rb') as f:
+                print(f'正在发送请求到 {emulator.ipW}:{self.agentPort}')
+                print(f'taskID: {taskID}, type: {type(taskID)}')
+                print(f'发送数据: taskID={str(taskID)}')
+                filename = os.path.basename(yml_path)
+                response = send_data('POST',
+                    '/emulated/launch',
+                    emulator.ipW,
+                    self.agentPort,
+                    data={'taskID': str(taskID)},
+                    files={'yml': (filename, f, 'text/yaml')}
+                )
+                print(f'请求响应: {response}')
+                
+        except FileNotFoundError as e:
+            print(f"文件错误: {str(e)}")
+            raise
+        except Exception as e:
+            print(f"发送请求失败: {str(e)}")
+            raise
+
+    def __build_emulated_env(self, taskID: int, tag: str, path1: str, path2: str):
+        """
+        send the Dockerfile and pip requirements.txt to emulators to build the execution environment.
+        this request can be received by worker/agent.py, route_emulated_build ().
+        @param tag: docker image name:version.
+        @param path1: path of Dockerfile.
+        @param path2: path of pip requirements.txt.
+        @return:
+        """
+        tasks = [self.executor.submit(self.__build_emulated_env_helper, e, tag, path1, path2, taskID)
+                 for e in self.emulator.values()]
+        wait(tasks, return_when=ALL_COMPLETED)
+
+    def __build_emulated_env_helper(self, emulator: Emulator, tag: str, path1: str, path2: str, taskID: int):
+        with open(path1, 'r') as f1, open(path2, 'r') as f2:
+            print('build_emulated_env: send to ' + emulator.nameW)
+            res = send_data('POST', '/emulated/build', emulator.ipW, self.agentPort,
+                            data={'tag': tag, 'taskID': taskID}, files={'Dockerfile': f1, 'dml_req': f2})
+            if res == '1':
+                print(emulator.nameW + ' build succeed')
+
+    def export_nfs(self):
+        """
+        clear all exported path and then export the defined path through nfs.
+        """
+        cmd = 'sudo exportfs -au'
+        sp.Popen(cmd, shell=True, stdout=sp.DEVNULL, stderr=sp.STDOUT).wait()
+        for nfs in self.nfs.values():
+            subnet = nfs.subnet
+            path = nfs.path
+            # export the path.
+            cmd = 'sudo exportfs ' + subnet + ':' + path
+            sp.Popen(cmd, shell=True, stdout=sp.DEVNULL, stderr=sp.STDOUT).wait()
+            # check result.
+            cmd = 'sudo exportfs -v'
+            p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT)
+            msg = p.communicate()[0].decode()
+            assert path in msg and subnet in msg, Exception(
+                'share ' + path + ' to ' + subnet + ' failed')
+
+    def load_background_workloads(self, config_path: str = None) -> Dict[str, BackgroundLoadNode]:
+        """
+        从配置文件中读取各emulator的背景负载配置，并添加到对应的emulator中
+        
+        Args:
+            config_path: 配置文件路径，默认为workload_config.json
+            
+        Returns:
+            Dict[str, BackgroundLoadNode]: emulator名称到背景负载节点的映射
+        """
+        if config_path is None:
+            config_path = os.path.join(self.dirName, 'workload_config.json')
+        
+        print(f"正在加载背景负载配置: {config_path}")
+        
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        except FileNotFoundError:
+            print(f"配置文件不存在: {config_path}")
+            return {}
+        except json.JSONDecodeError as e:
+            print(f"配置文件格式错误: {e}")
+            return {}
+        
+        workloads = config.get('workloads', {})
+        bg_nodes = {}
+        
+        for emulator_name, workload_info in workloads.items():
+            # 检查是否启用
+            if not workload_info.get('enabled', True):
+                print(f"跳过未启用的负载: {emulator_name}")
+                continue
+            
+            # 检查emulator是否存在
+            if emulator_name not in self.emulator:
+                print(f"警告: emulator {emulator_name} 不存在，跳过")
+                continue
+            
+            emulator = self.emulator[emulator_name]
+            
+            # 获取负载配置
+            cpu = workload_info.get('cpu', 1)
+            ram = workload_info.get('ram', 1)
+            unit = workload_info.get('unit', 'G')
+            image = workload_info.get('image', 'stress:latest')
+            
+            # 内存单位转换
+            if unit == 'M':
+                ram = ram // 1024
+            
+            # 创建背景负载节点
+            bg_node_name = f"{emulator_name}_bgload"
+            bg_node = BackgroundLoadNode(
+                name=bg_node_name,
+                emulator_name=emulator_name,
+                cpu=cpu,
+                ram=ram,
+                image=image
+            )
+            
+            try:
+                # 添加到emulator
+                emulator.add_background_load(bg_node)
+                bg_nodes[emulator_name] = bg_node
+                print(f"成功添加背景负载到 {emulator_name}: CPU={cpu}, RAM={ram}GB")
+            except Exception as e:
+                print(f"添加背景负载到 {emulator_name} 失败: {e}")
+        
+        # 加载网络拓扑带宽信息
+        links = config.get('links', {})
+        if links:
+            print(f"正在加载网络拓扑带宽配置...")
+            for source_emulator, connections in links.items():
+                # 检查源emulator是否存在
+                if source_emulator not in self.emulator:
+                    print(f"警告: emulator {source_emulator} 不存在，跳过其网络拓扑配置")
+                    continue
+                
+                for connection in connections:
+                    dest_emulator = connection.get('dest')
+                    bw_str = connection.get('bw', '0mbps')
+                    
+                    # 检查目标emulator是否存在
+                    if dest_emulator not in self.emulator:
+                        print(f"警告: 目标emulator {dest_emulator} 不存在，跳过连接 {source_emulator} -> {dest_emulator}")
+                        continue
+                    
+                    # 解析带宽值（支持mbps格式）
+                    try:
+                        bw = int(bw_str.replace('mbps', '').replace('Mbps', '').replace('MBPS', ''))
+                    except (ValueError, AttributeError):
+                        print(f"警告: 无法解析带宽值 '{bw_str}'，跳过连接 {source_emulator} -> {dest_emulator}")
+                        continue
+                    
+                    # 更新带宽使用量（不创建tc链接，只更新已用带宽记录）
+                    try:
+                        self.add_emulator_bw_pre_map(source_emulator, dest_emulator, bw)
+                        print(f"成功更新带宽使用量: {source_emulator} -> {dest_emulator} = {bw}mbps")
+                    except Exception as e:
+                        print(f"更新带宽使用量失败 {source_emulator} -> {dest_emulator}: {e}")
+        
+        return bg_nodes
+
+    def save_background_load_ymls(self) -> Dict[str, str]:
+        """
+        为所有有背景负载的emulator保存yml文件
+        
+        Returns:
+            Dict[str, str]: emulator名称到yml文件路径的映射
+        """
+        yml_files = {}
+        
+        for emulator_name, emulator in self.emulator.items():
+            if emulator.bgLoadNode:
+                yml_path = emulator.save_background_load_yml(self.dirName)
+                if yml_path:
+                    yml_files[emulator_name] = yml_path
+                    print(f"保存背景负载yml文件: {yml_path}")
+        
+        return yml_files
+
+    def launch_background_loads(self) -> bool:
+        """
+        批量启动所有emulator上的背景负载容器
+        
+        Returns:
+            bool: 是否全部启动成功
+        """
+        # 先保存yml文件
+        yml_files = self.save_background_load_ymls()
+        
+        if not yml_files:
+            print("没有需要启动的背景负载")
+            return True
+        
+        # 使用线程池并行启动
+        tasks = []
+        for emulator_name, yml_path in yml_files.items():
+            emulator = self.emulator[emulator_name]
+            print(f"准备启动 {emulator_name} 上的背景负载")
+            tasks.append(self.executor.submit(self.__launch_background_load, emulator, yml_path))
+        
+        # 等待所有任务完成
+        wait(tasks, return_when=ALL_COMPLETED)
+        
+        # 更新背景负载状态
+        all_success = True
+        for emulator_name, emulator in self.emulator.items():
+            for bg_node in emulator.bgLoadNode.values():
+                bg_node.is_running = True
+        
+        print("所有背景负载启动完成")
+        return all_success
+
+    def __launch_background_load(self, emulator: Emulator, yml_path: str):
+        """
+        启动单个emulator上的背景负载容器
+        
+        Args:
+            emulator: Emulator对象
+            yml_path: yml文件路径
+        """
+        try:
+            print(f"正在发送背景负载yml到 {emulator.nameW}")
+            
+            if not os.path.exists(yml_path):
+                raise FileNotFoundError(f"找不到YML文件: {yml_path}")
+            
+            with open(yml_path, 'rb') as f:
+                filename = os.path.basename(yml_path)
+                response = send_data('POST',
+                    '/bgload/launch',
+                    emulator.ipW,
+                    self.agentPort,
+                    files={'yml': (filename, f, 'text/yaml')}
+                )
+                print(f"背景负载启动响应 ({emulator.nameW}): {response}")
+                
+        except Exception as e:
+            print(f"启动背景负载失败 ({emulator.nameW}): {e}")
+            raise
+
+    def stop_background_loads(self) -> bool:
+        """
+        批量停止所有emulator上的背景负载容器
+        
+        Returns:
+            bool: 是否全部停止成功
+        """
+        tasks = []
+        for emulator_name, emulator in self.emulator.items():
+            if emulator.bgLoadNode:
+                print(f"准备停止 {emulator_name} 上的背景负载")
+                tasks.append(self.executor.submit(self.__stop_background_load, emulator))
+        
+        if not tasks:
+            print("没有需要停止的背景负载")
+            return True
+        
+        # 等待所有任务完成
+        wait(tasks, return_when=ALL_COMPLETED)
+        
+        # 更新背景负载状态
+        for emulator_name, emulator in self.emulator.items():
+            for bg_node in emulator.bgLoadNode.values():
+                bg_node.is_running = False
+        
+        print("所有背景负载已停止")
+        return True
+
+    def __stop_background_load(self, emulator: Emulator):
+        """
+        停止单个emulator上的背景负载容器
+        
+        Args:
+            emulator: Emulator对象
+        """
+        try:
+            print(f"正在停止 {emulator.nameW} 上的背景负载")
+            response = send_data('GET',
+                '/bgload/stop',
+                emulator.ipW,
+                self.agentPort
+            )
+            print(f"背景负载停止响应 ({emulator.nameW}): {response}")
+        except Exception as e:
+            print(f"停止背景负载失败 ({emulator.nameW}): {e}")
+            raise
+
+    def clear_background_loads(self) -> bool:
+        """
+        批量清理所有emulator上的背景负载容器（停止并删除）
+        
+        Returns:
+            bool: 是否全部清理成功
+        """
+        tasks = []
+        for emulator_name, emulator in self.emulator.items():
+            if emulator.bgLoadNode:
+                print(f"准备清理 {emulator_name} 上的背景负载")
+                tasks.append(self.executor.submit(self.__clear_background_load, emulator))
+        
+        if not tasks:
+            print("没有需要清理的背景负载")
+            return True
+        
+        # 等待所有任务完成
+        wait(tasks, return_when=ALL_COMPLETED)
+        
+        # 清理背景负载信息
+        for emulator_name, emulator in self.emulator.items():
+            # 重置背景负载资源占用
+            emulator.bgCpuUsed = 0.0
+            emulator.bgRamUsed = 0
+            emulator.bgLoadNode.clear()
+        
+        print("所有背景负载已清理")
+        return True
+
+    def __clear_background_load(self, emulator: Emulator):
+        """
+        清理单个emulator上的背景负载容器
+        
+        Args:
+            emulator: Emulator对象
+        """
+        try:
+            print(f"正在清理 {emulator.nameW} 上的背景负载")
+            response = send_data('GET',
+                '/bgload/clear',
+                emulator.ipW,
+                self.agentPort
+            )
+            print(f"背景负载清理响应 ({emulator.nameW}): {response}")
+        except Exception as e:
+            print(f"清理背景负载失败 ({emulator.nameW}): {e}")
     
     def __creat_log(self, taskID: int) -> bool:
         """创建任务日志文件夹

@@ -11,28 +11,28 @@ volumes:
       o: "addr=100.68.1.50,ro"
       device: ":/home/qianguo/Edge-Scheduler/Controller/dataset"
 services:
-  1_n2:
-    container_name: 1_n2
+  1_n3:
+    container_name: 1_n3
     image: task1:v1.0
     working_dir: /home/qianguo/EdgeScheduler/Worker/dml_app/1
     stdin_open: true
     tty: true
     cap_add:
       - NET_ADMIN
-    cpus: 1.12
-    mem_limit: 12.0G
+    cpus: 0.88
+    mem_limit: 35G
     environment:
-      - EDGE_TB_ID=3
-      - NET_NODE_NAME=1_n2
+      - EDGE_TB_ID=4
+      - NET_NODE_NAME=1_n3
       - NODE_PORT=4444
       - NET_CTL_ADDRESS=100.68.1.50:3333
-      - NET_AGENT_ADDRESS=100.68.1.3:3333
+      - NET_AGENT_ADDRESS=100.68.1.4:3333
       - NET_TASK_ID=1
-      - NET_LOG_TIMESTAMP=2026-01-08-18-17-56
+      - NET_LOG_TIMESTAMP=2026-01-08-17-36-23
     healthcheck:
       test: curl -f http://localhost:4444/hi
     ports:
-      - "8003:4444"
+      - "8004:4444"
     volumes:
       - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
       - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro

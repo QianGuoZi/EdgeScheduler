@@ -264,17 +264,39 @@ class NetworkScheduler:
         # 获取最短路径
         path = self.topology.get_shortest_path(physical_from, physical_to)
         if not path:
+            print(f"❌ 路径不存在: 物理节点 {physical_from} -> {physical_to}")
             return False
         
         # 检查带宽是否足够（考虑路径方向）
+        # 在检查前，打印路径上每条链路的可用带宽
+        print(f"🔍 检查路径 {path} 的带宽可用性 (需求: {bandwidth}mbps):")
+        for i in range(len(path) - 1):
+            u, v = path[i], path[i + 1]
+            available = self.topology.get_available_bandwidth(u, v)
+            link_info = self.topology.links.get((u, v), {})
+            total_bw = link_info.get('bandwidth', 0)
+            used_bw = link_info.get('used_bandwidth', 0)
+            print(f"  链路({u},{v}): 总={total_bw}mbps, 已用={used_bw}mbps, 可用={available}mbps")
+        
         if not self.topology.check_bandwidth_availability(path, bandwidth):
+            print(f"❌ 路径 {path} 带宽不足 (需求: {bandwidth}mbps)")
             return False
         
         # 分配带宽
         success = self.topology.allocate_bandwidth(path, bandwidth)
         if not success:
-            print(f"警告：路径 {path} 上的带宽分配失败")
+            print(f"❌ 警告：路径 {path} 上的带宽分配失败")
             return False
+        
+        # 分配成功后，打印更新后的带宽状态
+        print(f"✅ 带宽分配成功，路径 {path} 已分配 {bandwidth}mbps:")
+        for i in range(len(path) - 1):
+            u, v = path[i], path[i + 1]
+            available = self.topology.get_available_bandwidth(u, v)
+            link_info = self.topology.links.get((u, v), {})
+            total_bw = link_info.get('bandwidth', 0)
+            used_bw = link_info.get('used_bandwidth', 0)
+            print(f"  链路({u},{v}): 总={total_bw}mbps, 已用={used_bw}mbps, 可用={available}mbps")
         
         self.bandwidth_allocation[(virtual_from, virtual_to)] = bandwidth
         

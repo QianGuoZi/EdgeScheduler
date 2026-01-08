@@ -97,12 +97,13 @@ class PPOScheduler:
         """检查PPO模型是否可用"""
         return self.ppo_agent is not None
     
-    def schedule(self, taskId: int, links_data: Dict) -> Tuple[Dict, Dict]:
+    def schedule(self, taskId: int, nodes_data: Dict, links_data: Dict) -> Tuple[Dict, Dict]:
         """
         使用PPO算法进行调度
         
         Args:
             taskId: 任务ID
+            nodes_data: 节点资源需求 {"p1": {"cpu": 10, "ram": 30}, ...}
             links_data: 链路数据（从links_range.json读取）
         
         Returns:
@@ -117,7 +118,7 @@ class PPOScheduler:
         topology = self._create_network_topology()
         
         # 创建虚拟工作
-        virtual_work = self._create_virtual_work(taskId, links_data)
+        virtual_work = self._create_virtual_work(taskId, nodes_data, links_data)
         
         # 使用PPO代理进行调度决策
         allocation, episode_info, bandwidth_allocation = self._run_ppo_scheduling_with_metrics(virtual_work)
@@ -154,6 +155,11 @@ class PPOScheduler:
                 idx1 = self.node_id_mapping[emu1]
                 idx2 = self.node_id_mapping[emu2]
                 
+                # 调试信息：打印带宽信息
+                available_bw = bw - used_bw
+                print(f"🔗 物理链路: {emu1}({idx1}) -> {emu2}({idx2}), "
+                      f"总带宽: {bw}mbps, 已用: {used_bw}mbps, 可用: {available_bw}mbps")
+                
                 topology.add_link(
                     idx1, idx2, 
                     bandwidth_1_to_2=bw,
@@ -161,13 +167,28 @@ class PPOScheduler:
                     used_bandwidth_1_to_2=used_bw,
                     used_bandwidth_2_to_1=used_bw
                 )
+                
+                # 验证：检查topology中的带宽是否正确设置
+                added_link = topology.links.get((idx1, idx2))
+                if added_link:
+                    actual_available = topology.get_available_bandwidth(idx1, idx2)
+                    if abs(actual_available - available_bw) > 0.01:
+                        print(f"⚠️  警告: 链路({idx1},{idx2})可用带宽不一致! "
+                              f"期望: {available_bw}mbps, 实际: {actual_available}mbps")
+                else:
+                    print(f"❌ 错误: 链路({idx1},{idx2})未成功添加到topology")
         
         return topology
     
-    def _create_virtual_work(self, taskId: int, links_data: Dict) -> VirtualWork:
-        """创建虚拟工作对象"""
-        import random
+    def _create_virtual_work(self, taskId: int, nodes_data: Dict, links_data: Dict) -> VirtualWork:
+        """
+        创建虚拟工作对象
         
+        Args:
+            taskId: 任务ID
+            nodes_data: 节点资源需求 {"p1": {"cpu": 10, "ram": 30}, ...}
+            links_data: 链路带宽需求
+        """
         virtual_nodes = list(links_data.keys())
         num_virtual_nodes = len(virtual_nodes)
         virtual_work = VirtualWork(num_virtual_nodes)
@@ -176,45 +197,99 @@ class PPOScheduler:
         self.idx_virtual_mapping = {}
         self.virtual_node_names = {}
         
+        # 保存带宽范围信息，用于后续校验
+        self.bandwidth_ranges = {}
+        
         for idx, node in enumerate(virtual_nodes):
             node_name = str(taskId) + '_' + node
             self.virtual_node_mapping[node_name] = idx
             self.idx_virtual_mapping[idx] = node_name
             self.virtual_node_names[idx] = node
             
-            # 使用随机生成的CPU和RAM值
-            cpu_demand = random.randint(1, 5)
-            ram_demand = random.randint(1, 5)
-            virtual_work.set_node_requirement(idx, cpu_demand, ram_demand)
-        
-        # 设置虚拟链路需求
-        for node, connections in links_data.items():
-            src_idx = self.virtual_node_mapping[str(taskId) + '_' + node]
+            # 从 nodes_data 中读取 CPU 和 RAM 需求
+            if nodes_data and node in nodes_data:
+                cpu_demand = nodes_data[node].get('cpu', 10)
+                ram_demand = nodes_data[node].get('ram', 30)
+            else:
+                # 兼容旧格式：如果没有节点资源信息，使用默认值
+                cpu_demand = 10
+                ram_demand = 30
             
+            virtual_work.set_node_requirement(idx, cpu_demand, ram_demand)
+            print(f"Virtual Node: {node_name}, CPU: {cpu_demand} shares, RAM: {ram_demand} GB")
+        
+        # 首先收集所有单向链路的带宽需求
+        link_bandwidths = {}  # (src, dest) -> {'min': x, 'max': y}
+        
+        for node, connections in links_data.items():
             for dest in connections:
-                dest_node = str(taskId) + '_' + dest['dest']
-                if dest_node in self.virtual_node_mapping:
-                    dest_idx = self.virtual_node_mapping[dest_node]
-                    
-                    # 解析带宽范围
-                    if 'bw_min' in dest and 'bw_max' in dest:
-                        min_bw = int(dest['bw_min'].replace('mbps', ''))
-                        max_bw = int(dest['bw_max'].replace('mbps', ''))
-                    elif 'bw' in dest and 'bw_max' in dest:
-                        min_bw = int(dest['bw'].replace('mbps', ''))
-                        max_bw = int(dest['bw_max'].replace('mbps', ''))
-                    else:
-                        bw = int(dest.get('bw', '10mbps').replace('mbps', ''))
-                        min_bw = bw
-                        max_bw = bw
-                    
-                    virtual_work.add_link_requirement(
-                        src_idx, dest_idx,
-                        min_bandwidth_1_to_2=min_bw,
-                        max_bandwidth_1_to_2=max_bw,
-                        min_bandwidth_2_to_1=min_bw,
-                        max_bandwidth_2_to_1=max_bw
-                    )
+                dest_name = dest['dest']
+                
+                # 解析带宽范围
+                if 'bw_min' in dest and 'bw_max' in dest:
+                    min_bw = int(dest['bw_min'].replace('mbps', ''))
+                    max_bw = int(dest['bw_max'].replace('mbps', ''))
+                elif 'bw' in dest and 'bw_max' in dest:
+                    min_bw = int(dest['bw'].replace('mbps', ''))
+                    max_bw = int(dest['bw_max'].replace('mbps', ''))
+                else:
+                    bw = int(dest.get('bw', '10mbps').replace('mbps', ''))
+                    min_bw = bw
+                    max_bw = bw
+                
+                link_bandwidths[(node, dest_name)] = {'min': min_bw, 'max': max_bw}
+                
+                # 保存带宽范围信息（用于后续校验）
+                self.bandwidth_ranges[(node, dest_name)] = {'min': min_bw, 'max': max_bw}
+        
+        # 设置虚拟链路需求（处理双向带宽）
+        processed_pairs = set()  # 已处理的节点对
+        
+        for (src, dest), bw_info in link_bandwidths.items():
+            src_idx = self.virtual_node_mapping.get(str(taskId) + '_' + src)
+            dest_idx = self.virtual_node_mapping.get(str(taskId) + '_' + dest)
+            
+            if src_idx is None or dest_idx is None:
+                continue
+            
+            # 使用有序的节点对作为 key，避免重复处理
+            pair_key = (min(src_idx, dest_idx), max(src_idx, dest_idx))
+            if pair_key in processed_pairs:
+                continue
+            processed_pairs.add(pair_key)
+            
+            # 获取双向带宽需求
+            # 方向1: src -> dest
+            min_bw_1_to_2 = bw_info['min']
+            max_bw_1_to_2 = bw_info['max']
+            
+            # 方向2: dest -> src（查找反向链路）
+            reverse_bw = link_bandwidths.get((dest, src), {'min': 0, 'max': 0})
+            min_bw_2_to_1 = reverse_bw['min']
+            max_bw_2_to_1 = reverse_bw['max']
+            
+            # 确保 src_idx < dest_idx（VirtualWork 的约定）
+            if src_idx < dest_idx:
+                virtual_work.add_link_requirement(
+                    src_idx, dest_idx,
+                    min_bandwidth_1_to_2=min_bw_1_to_2,
+                    max_bandwidth_1_to_2=max_bw_1_to_2,
+                    min_bandwidth_2_to_1=min_bw_2_to_1,
+                    max_bandwidth_2_to_1=max_bw_2_to_1
+                )
+            else:
+                # 如果 src_idx > dest_idx，需要交换方向
+                virtual_work.add_link_requirement(
+                    dest_idx, src_idx,
+                    min_bandwidth_1_to_2=min_bw_2_to_1,
+                    max_bandwidth_1_to_2=max_bw_2_to_1,
+                    min_bandwidth_2_to_1=min_bw_1_to_2,
+                    max_bandwidth_2_to_1=max_bw_1_to_2
+                )
+            
+            print(f"Link: {src} <-> {dest}: "
+                  f"{src}->{dest} [{min_bw_1_to_2}-{max_bw_1_to_2}], "
+                  f"{dest}->{src} [{min_bw_2_to_1}-{max_bw_2_to_1}]")
         
         return virtual_work
     
@@ -241,9 +316,12 @@ class PPOScheduler:
             'seed': seed,
             'virtual_nodes_range': (num_virtual_nodes, num_virtual_nodes),
             'max_virtual_nodes': max(num_virtual_nodes, cfg.get('max_virtual_nodes', 8)),
-            'curriculum_enabled': False,
+            'curriculum_enabled': False,  # 调度时禁用课程学习
             'num_physical_nodes': len(self.controller.emulator),
-            'bandwidth_levels': cfg.get('bandwidth_levels', 10)
+            'bandwidth_levels': cfg.get('bandwidth_levels', 10),
+            # 新增：设置调度模式
+            'use_external_virtual_work': True,  # 启用外部VirtualWork模式
+            'external_virtual_work': virtual_work  # 传递VirtualWork对象
         })
         
         if env_type == "Sequential":
@@ -313,11 +391,15 @@ class PPOScheduler:
             env_type = "NewHeuristic"
             env = self._make_ppo_env_with_virtual_work(virtual_work, seed=42, env_type=env_type)
             
+            # 在reset时传递VirtualWork（虽然已经在初始化时设置，但为了明确性再次传递）
+            state = env.reset(external_virtual_work=virtual_work)
+            
             total_reward, success, episode_info = self._run_ppo_episode(
                 env, self.ppo_agent, 
                 temperature=0.05,
                 max_steps=50,
-                greedy=True
+                greedy=True,
+                initial_state=state  # 传递已reset的初始状态
             )
             
             L_val = episode_info.get('load_balance_degree', 0.0)
@@ -339,9 +421,14 @@ class PPOScheduler:
     
     def _run_ppo_episode(self, env, agent: SimpleSequentialAgent, 
                         temperature: float = 0.1, max_steps: int = 50, 
-                        greedy: bool = True) -> Tuple[float, bool, Dict]:
+                        greedy: bool = True, initial_state: Dict = None) -> Tuple[float, bool, Dict]:
         """运行PPO算法的Episode"""
-        state = env.reset()
+        if initial_state is not None:
+            # 如果提供了初始状态，直接使用（已经在外部reset过了）
+            state = initial_state
+        else:
+            # 否则调用reset
+            state = env.reset()
         
         self._integrate_original_reward_after_reset(env)
         
@@ -451,7 +538,7 @@ class PPOScheduler:
         return allocation
     
     def _extract_bandwidth_allocation_from_env(self, env) -> Dict:
-        """从PPO环境中提取带宽分配结果"""
+        """从PPO环境中提取带宽分配结果，并校验是否在范围内"""
         bandwidth_allocation = {}
         
         try:
@@ -462,8 +549,27 @@ class PPOScheduler:
                     for (v_from, v_to), bw in scheduler.bandwidth_allocation.items():
                         src_name = self.virtual_node_names.get(v_from, f"node_{v_from}")
                         dst_name = self.virtual_node_names.get(v_to, f"node_{v_to}")
+                        
+                        # 校验并修正带宽值，确保在范围内
+                        original_bw = bw
+                        if hasattr(self, 'bandwidth_ranges') and (src_name, dst_name) in self.bandwidth_ranges:
+                            bw_range = self.bandwidth_ranges[(src_name, dst_name)]
+                            min_bw = bw_range['min']
+                            max_bw = bw_range['max']
+                            
+                            # 将带宽值限制在范围内
+                            if bw < min_bw:
+                                bw = min_bw
+                                print(f"   ⚠️  带宽修正: {src_name} -> {dst_name}: {original_bw} -> {bw} mbps (低于最小值 {min_bw})")
+                            elif bw > max_bw:
+                                bw = max_bw
+                                print(f"   ⚠️  带宽修正: {src_name} -> {dst_name}: {original_bw} -> {bw} mbps (超过最大值 {max_bw})")
+                            else:
+                                print(f"   ✅ 带宽分配: {src_name} -> {dst_name}: {bw} mbps (范围: {min_bw}-{max_bw})")
+                        else:
+                            print(f"   带宽分配: {src_name} -> {dst_name}: {bw} mbps (无范围信息)")
+                        
                         bandwidth_allocation[(src_name, dst_name)] = bw
-                        print(f"   带宽分配: {src_name} -> {dst_name}: {bw} mbps")
                 
                 print(f"✅ 从PPO环境提取到 {len(bandwidth_allocation)} 条带宽分配")
                 

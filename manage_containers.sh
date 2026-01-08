@@ -1,12 +1,36 @@
 #!/bin/bash
 
 # 批量管理远程设备上的Docker容器（只管理指定镜像的容器）
-# 使用方法: ./manage_containers.sh [stop|pause|unpause|rm|status]
+# 使用方法: ./manage_containers.sh [stop|pause|unpause|rm|status] [镜像名称]
+# 镜像名称可选: task1:v1.0 (默认) 或 stress:latest
 
+# 颜色输出
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# 解析参数
 ACTION=${1:-status}
+IMAGE_ARG=${2:-}
 
-# 目标镜像名称
-TARGET_IMAGE="task1:v1.0"
+# 目标镜像名称（默认值）
+DEFAULT_IMAGE="task1:v1.0"
+
+# 设置目标镜像
+if [ -n "$IMAGE_ARG" ]; then
+    # 验证镜像名称是否支持
+    if [[ "$IMAGE_ARG" == "task1:v1.0" || "$IMAGE_ARG" == "stress:latest" ]]; then
+        TARGET_IMAGE="$IMAGE_ARG"
+    else
+        echo -e "${RED}错误: 不支持的镜像名称 '${IMAGE_ARG}'${NC}"
+        echo "支持的镜像: task1:v1.0, stress:latest"
+        exit 1
+    fi
+else
+    TARGET_IMAGE="$DEFAULT_IMAGE"
+fi
 
 # 设备组1: 100.68.1.x (需要sudo运行docker)
 GROUP1_IPS=("100.68.1.3" "100.68.1.4" "100.68.1.5" "100.68.1.6")
@@ -19,13 +43,6 @@ GROUP2_IPS=("100.68.2.1" "100.68.2.2" "100.68.2.3" "100.68.2.4" "100.68.2.5" "10
 GROUP2_USER="nvidia"
 GROUP2_PASS="nvidia"
 GROUP2_SUDO=true
-
-# 颜色输出
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
 
 # 临时目录
 TEMP_DIR=$(mktemp -d)
@@ -223,20 +240,27 @@ main() {
 
 # 显示帮助信息
 show_help() {
-    echo "使用方法: $0 [stop|pause|unpause|rm|status]"
+    echo "使用方法: $0 [操作] [镜像名称]"
     echo ""
+    echo "操作:"
     echo "  status  - 查看所有设备的容器状态 (默认)"
     echo "  stop    - 停止所有设备上的容器"
     echo "  pause   - 暂停所有设备上的容器"
     echo "  unpause - 恢复所有设备上暂停的容器"
     echo "  rm      - 删除所有设备上的容器 (会先停止)"
     echo ""
+    echo "镜像名称 (可选):"
+    echo "  task1:v1.0  - 默认镜像"
+    echo "  stress:latest - 压力测试镜像"
+    echo ""
     echo "示例:"
-    echo "  $0 status   # 查看容器状态"
-    echo "  $0 stop     # 停止所有容器"
-    echo "  $0 pause    # 暂停所有容器"
-    echo "  $0 unpause  # 恢复暂停的容器"
-    echo "  $0 rm       # 删除所有容器"
+    echo "  $0 status              # 查看 task1:v1.0 容器状态 (默认)"
+    echo "  $0 status task1:v1.0   # 查看 task1:v1.0 容器状态"
+    echo "  $0 status stress:latest # 查看 stress:latest 容器状态"
+    echo "  $0 stop task1:v1.0     # 停止 task1:v1.0 容器"
+    echo "  $0 stop stress:latest   # 停止 stress:latest 容器"
+    echo "  $0 pause                # 暂停 task1:v1.0 容器 (默认)"
+    echo "  $0 rm stress:latest     # 删除 stress:latest 容器"
 }
 
 # 入口

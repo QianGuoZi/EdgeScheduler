@@ -97,16 +97,38 @@ class Scheduler(object):
         """
         使用PPO模型进行资源调度
         读取links_range.json，调度后生成links.json
+        
+        links_range.json 格式:
+        {
+            "nodes": {
+                "p1": {"cpu": 10, "ram": 30},
+                "n1": {"cpu": 8, "ram": 25},
+                ...
+            },
+            "links": {
+                "p1": [{"dest": "n1", "bw_min": "5mbps", "bw_max": "10mbps"}, ...],
+                ...
+            }
+        }
         """
         # 读取带宽范围文件
         links_range_path = os.path.join(dirName, 'task_links', str(taskId), 'links_range.json')
         with open(links_range_path, 'r') as file:
-            links_data = json.load(file)
+            full_data = json.load(file)
+        
+        # 解析新格式：包含 nodes 和 links 两部分
+        if 'nodes' in full_data and 'links' in full_data:
+            nodes_data = full_data['nodes']  # 节点的 cpu 和 ram 需求
+            links_data = full_data['links']  # 链路带宽需求
+        else:
+            # 兼容旧格式（只有链路信息）
+            nodes_data = {}
+            links_data = full_data
         
         # 尝试使用PPO算法
         if self.ppo_scheduler.is_available():
             try:
-                allocation, bandwidth_allocation = self.ppo_scheduler.schedule(taskId, links_data)
+                allocation, bandwidth_allocation = self.ppo_scheduler.schedule(taskId, nodes_data, links_data)
                 
                 if allocation:
                     # 更新节点计数
@@ -126,10 +148,17 @@ class Scheduler(object):
                 traceback.print_exc()
         
         # PPO失败时回退到GA算法
-        return self._schedule_with_ga(taskId, links_data)
+        return self._schedule_with_ga(taskId, nodes_data, links_data)
     
-    def _schedule_with_ga(self, taskId: int, links_data: Dict) -> Dict:
-        """使用GA算法进行调度（回退方案）"""
+    def _schedule_with_ga(self, taskId: int, nodes_data: Dict, links_data: Dict) -> Dict:
+        """
+        使用GA算法进行调度（回退方案）
+        
+        Args:
+            taskId: 任务ID
+            nodes_data: 节点资源需求 {"p1": {"cpu": 10, "ram": 30}, ...}
+            links_data: 链路带宽需求 {"p1": [{"dest": "n1", ...}, ...], ...}
+        """
         print(f"🧬 使用GA算法调度任务 {taskId}")
         
         allocation = {}
@@ -151,7 +180,7 @@ class Scheduler(object):
             available_cores = emulator.get_available_cpu_cores()
             print(f"Emulator: {emulator.nameW}, "
                   f"CPU: {available_cpu_shares} shares ({available_cores:.2f} cores), "
-                  f"RAM: {available_ram} MB")
+                  f"RAM: {available_ram} GB")
         
         for emu1, emu2, bw, used_bw in self.controller.iter_bandwidth():
             physical_links.append({
@@ -166,17 +195,22 @@ class Scheduler(object):
 
         for node, connections in links_data.items():
             node_name = str(taskId) + '_' + node
-            # 使用随机生成的 CPU 和 RAM 值
-            cpu_demand = random.randint(1, 5)
-            ram_demand = random.randint(1, 5)
+            
+            # 从 nodes_data 中读取 CPU 和 RAM 需求
+            if nodes_data and node in nodes_data:
+                cpu_demand = nodes_data[node].get('cpu', 10)
+                ram_demand = nodes_data[node].get('ram', 30)
+            else:
+                # 兼容旧格式：如果没有节点资源信息，使用默认值
+                cpu_demand = 10
+                ram_demand = 30
+            
             virtual_nodes.append({
                 'name': node_name,
-                # 'cpu': cpu_demand,
-                'cpu': 10,
-                # 'ram': ram_demand
-                'ram': 30
+                'cpu': cpu_demand,
+                'ram': ram_demand
             })
-            print(f"Virtual Node: {node_name}, CPU: {cpu_demand}, RAM: {ram_demand}")
+            print(f"Virtual Node: {node_name}, CPU: {cpu_demand} shares, RAM: {ram_demand} GB")
             
             for dest in connections:
                 dest_node = str(taskId) + '_' + dest['dest']
