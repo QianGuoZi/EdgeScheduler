@@ -1,0 +1,36 @@
+{
+  "description": "负载数据和任务请求数据集索引",
+  "total_datasets": 5,
+  "datasets": [
+    {
+      "dataset_id": 1,
+      "utilization_rate": "random(0.1-0.5)",
+      "workload_file": "workload_config_1.json",
+      "task_links_file": "task_links_config_1.json"
+    },
+    {
+      "dataset_id": 2,
+      "utilization_rate": "random(0.1-0.5)",
+      "workload_file": "workload_config_2.json",
+      "task_links_file": "task_links_config_2.json"
+    },
+    {
+      "dataset_id": 3,
+      "utilization_rate": "random(0.1-0.5)",
+      "workload_file": "workload_config_3.json",
+      "task_links_file": "task_links_config_3.json"
+    },
+    {
+      "dataset_id": 4,
+      "utilization_rate": "random(0.1-0.5)",
+      "workload_file": "workload_config_4.json",
+      "task_links_file": "task_links_config_4.json"
+    },
+    {
+      "dataset_id": 5,
+      "utilization_rate": "random(0.1-0.5)",
+      "workload_file": "workload_config_5.json",
+      "task_links_file": "task_links_config_5.json"
+    }
+  ]
+}

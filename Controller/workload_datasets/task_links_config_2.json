@@ -1,0 +1,106 @@
+{
+  "nodes": {
+    "p1": {
+      "cpu": 18,
+      "ram": 43
+    },
+    "n1": {
+      "cpu": 10,
+      "ram": 17
+    },
+    "n2": {
+      "cpu": 45,
+      "ram": 13
+    },
+    "n3": {
+      "cpu": 15,
+      "ram": 44
+    },
+    "n4": {
+      "cpu": 50,
+      "ram": 45
+    }
+  },
+  "links": {
+    "p1": [
+      {
+        "dest": "n1",
+        "bw_min": "14mbps",
+        "bw_max": "65mbps"
+      },
+      {
+        "dest": "n4",
+        "bw_min": "22mbps",
+        "bw_max": "95mbps"
+      },
+      {
+        "dest": "n3",
+        "bw_min": "16mbps",
+        "bw_max": "52mbps"
+      }
+    ],
+    "n1": [
+      {
+        "dest": "p1",
+        "bw_min": "11mbps",
+        "bw_max": "84mbps"
+      },
+      {
+        "dest": "n3",
+        "bw_min": "49mbps",
+        "bw_max": "92mbps"
+      }
+    ],
+    "n4": [
+      {
+        "dest": "p1",
+        "bw_min": "40mbps",
+        "bw_max": "77mbps"
+      },
+      {
+        "dest": "n2",
+        "bw_min": "33mbps",
+        "bw_max": "76mbps"
+      },
+      {
+        "dest": "n3",
+        "bw_min": "44mbps",
+        "bw_max": "54mbps"
+      }
+    ],
+    "n2": [
+      {
+        "dest": "n3",
+        "bw_min": "43mbps",
+        "bw_max": "92mbps"
+      },
+      {
+        "dest": "n4",
+        "bw_min": "15mbps",
+        "bw_max": "78mbps"
+      }
+    ],
+    "n3": [
+      {
+        "dest": "n2",
+        "bw_min": "39mbps",
+        "bw_max": "95mbps"
+      },
+      {
+        "dest": "p1",
+        "bw_min": "15mbps",
+        "bw_max": "53mbps"
+      },
+      {
+        "dest": "n1",
+        "bw_min": "30mbps",
+        "bw_max": "95mbps"
+      },
+      {
+        "dest": "n4",
+        "bw_min": "16mbps",
+        "bw_max": "81mbps"
+      }
+    ]
+  }
+}
