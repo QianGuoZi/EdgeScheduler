@@ -2,67 +2,67 @@
   "p1": [
     {
       "dest": "n1",
-      "bw": "78mbps"
+      "bw": "65mbps"
     },
     {
       "dest": "n4",
-      "bw": "92mbps"
+      "bw": "38mbps"
+    },
+    {
+      "dest": "n3",
+      "bw": "52mbps"
     }
   ],
   "n1": [
     {
       "dest": "p1",
-      "bw": "63mbps"
-    },
-    {
-      "dest": "n2",
-      "bw": "85mbps"
+      "bw": "84mbps"
     },
     {
       "dest": "n3",
-      "bw": "71mbps"
-    },
-    {
-      "dest": "n4",
-      "bw": "56mbps"
-    }
-  ],
-  "n2": [
-    {
-      "dest": "n1",
-      "bw": "67mbps"
-    },
-    {
-      "dest": "n3",
-      "bw": "89mbps"
-    },
-    {
-      "dest": "n4",
-      "bw": "74mbps"
-    }
-  ],
-  "n3": [
-    {
-      "dest": "n1",
-      "bw": "59mbps"
-    },
-    {
-      "dest": "n2",
-      "bw": "58mbps"
+      "bw": "92mbps"
     }
   ],
   "n4": [
     {
-      "dest": "n1",
-      "bw": "82mbps"
+      "dest": "p1",
+      "bw": "77mbps"
     },
     {
       "dest": "n2",
-      "bw": "69mbps"
+      "bw": "76mbps"
+    },
+    {
+      "dest": "n3",
+      "bw": "54mbps"
+    }
+  ],
+  "n2": [
+    {
+      "dest": "n3",
+      "bw": "92mbps"
+    },
+    {
+      "dest": "n4",
+      "bw": "78mbps"
+    }
+  ],
+  "n3": [
+    {
+      "dest": "n2",
+      "bw": "95mbps"
     },
     {
       "dest": "p1",
-      "bw": "91mbps"
+      "bw": "53mbps"
+    },
+    {
+      "dest": "n1",
+      "bw": "44mbps"
+    },
+    {
+      "dest": "n4",
+      "bw": "81mbps"
     }
   ]
 }

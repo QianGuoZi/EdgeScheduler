@@ -11,8 +11,14 @@ import numpy as np
 # PPO相关导入
 sys.path.append(os.path.join(os.path.dirname(__file__), 'algorithm/PPO_my'))
 from sequential_agent import SimpleSequentialAgent
+from heuristic_algorithm import create_heuristic_agent, run_heuristic_episode
 from network_scheduler import NetworkTopology, VirtualWork, NetworkScheduler
 from original_reward import OriginalRewardCalculator
+
+# PPO_mapping / PPO_balance 相关导入
+sys.path.append(os.path.join(os.path.dirname(__file__), 'algorithm/PPO_mapping'))
+from balance_environment import PPOBalanceNetworkEnvironment
+from balance_agent import BalanceAgent
 
 
 dirName = '/home/qianguo/Edge-Scheduler/Controller'
@@ -27,6 +33,10 @@ class PPOScheduler:
         self.ppo_agent = None
         self.ppo_env_config = {}
         self.ppo_agent_config = {}
+        # PPO_balance (PPOmapping) 相关
+        self.balance_agent = None
+        self.balance_env_config = {}
+        self.balance_agent_config = {}
         
         # 节点映射相关
         self.node_id_mapping = {}  # 物理节点名字到索引
@@ -37,6 +47,7 @@ class PPOScheduler:
         self.current_task_id = None
         
         self._init_ppo_agent()
+        self._init_balance_agent()
     
     def _init_ppo_agent(self):
         """初始化PPO智能体"""
@@ -93,24 +104,135 @@ class PPOScheduler:
         print("✅ PPO Agent与配置加载完成")
         return agent, env_config, agent_config
     
+    def _init_balance_agent(self):
+        """初始化 PPO_balance (PPOmapping) 智能体，不影响原有训练脚本。"""
+        try:
+            # balance_results 目录结构参考 four_algorithms_with_balance_test.py
+            balance_results_dir = os.path.join(dirName, 'base/algorithm/PPO_mapping/balance_results')
+            if not os.path.isdir(balance_results_dir):
+                print(f"⚠️ 未找到 PPO_balance 结果目录: {balance_results_dir}")
+                self.balance_agent = None
+                return
+            
+            # 查找所有 balance_ppo_* 子目录
+            candidates = []
+            for item in os.listdir(balance_results_dir):
+                item_path = os.path.join(balance_results_dir, item)
+                if os.path.isdir(item_path) and item.startswith('balance_ppo_'):
+                    candidates.append(item_path)
+            
+            if not candidates:
+                print(f"⚠️ balance_results 目录中未找到 balance_ppo_* 子目录")
+                self.balance_agent = None
+                return
+            
+            # 按名称排序，选择最新的一个（也可以按时间排序，这里名称包含时间戳通常已足够）
+            candidates.sort()
+            latest_dir = candidates[-1]
+            checkpoints_dir = os.path.join(latest_dir, 'checkpoints')
+            if not os.path.isdir(checkpoints_dir):
+                print(f"⚠️ PPO_balance checkpoints 目录不存在: {checkpoints_dir}")
+                self.balance_agent = None
+                return
+            
+            # 优先选择 best_model.pth 或 model_final.pth，其次是 model_ep_*.pth 中最新的
+            model_path = None
+            for fname in ['best_model.pth', 'model_final.pth']:
+                cand = os.path.join(checkpoints_dir, fname)
+                if os.path.exists(cand):
+                    model_path = cand
+                    break
+            
+            if model_path is None:
+                import re
+                ep_pattern = re.compile(r'^model_ep_(\d+)\.pth$')
+                ep_candidates = []
+                for fname in os.listdir(checkpoints_dir):
+                    m = ep_pattern.match(fname)
+                    if m:
+                        ep_candidates.append((int(m.group(1)), os.path.join(checkpoints_dir, fname)))
+                if ep_candidates:
+                    ep_candidates.sort(key=lambda x: x[0], reverse=True)
+                    model_path = ep_candidates[0][1]
+            
+            if model_path is None:
+                print(f"⚠️ 未在 {checkpoints_dir} 中找到可用的 PPO_balance 模型文件")
+                self.balance_agent = None
+                return
+            
+            # 读取训练配置（env_config / agent_config）
+            summary_path = os.path.join(latest_dir, 'training_summary.json')
+            config = {}
+            if os.path.exists(summary_path):
+                import json
+                with open(summary_path, 'r', encoding='utf-8') as f:
+                    summary = json.load(f)
+                config = summary.get('config', {})
+            else:
+                print(f"⚠️ 未找到 PPO_balance 训练配置 {summary_path}，将使用默认配置")
+            
+            self.balance_agent, self.balance_env_config, self.balance_agent_config = self._load_balance_agent_and_configs(
+                model_path, config
+            )
+            print(f"✅ PPO_balance 模型加载成功: {model_path}")
+        except Exception as e:
+            print(f"❌ PPO_balance 模型加载失败: {e}")
+            self.balance_agent = None
+    
+    def _load_balance_agent_and_configs(self, model_path: str, config: Dict):
+        """加载 PPO_balance Agent 与配置，逻辑参考 four_algorithms_with_balance_test._load_balance_agent_and_configs。"""
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f"🔄 加载PPO_balance模型: {model_path}")
+        
+        env_config = config.get('env_config', {})
+        agent_config = config.get('agent_config', {})
+        
+        # 创建 Agent 并载入权重
+        agent = BalanceAgent(**agent_config)
+        checkpoint = torch.load(model_path, map_location=device)
+        
+        # 检查 checkpoint 格式并正确提取模型状态
+        if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+            model_state_dict = checkpoint['model_state_dict']
+        else:
+            # 旧格式，直接是 state_dict
+            model_state_dict = checkpoint
+        
+        agent.load_state_dict(model_state_dict)
+        agent.eval()
+        
+        print("✅ PPO_balance Agent与配置加载完成")
+        return agent, env_config, agent_config
+    
     def is_available(self) -> bool:
-        """检查PPO模型是否可用"""
+        """检查 PPO 模型是否可用（PPO / 启发式 / 随机基于同一环境）"""
         return self.ppo_agent is not None
     
-    def schedule(self, taskId: int, nodes_data: Dict, links_data: Dict) -> Tuple[Dict, Dict]:
+    def is_balance_available(self) -> bool:
+        """检查 PPO_balance (PPOmapping) 模型是否可用"""
+        return self.balance_agent is not None
+    
+    def schedule(self, taskId: int, nodes_data: Dict, links_data: Dict,
+                 method: str = "ppo") -> Tuple[Dict, Dict]:
         """
-        使用PPO算法进行调度
+        使用指定算法进行调度
         
         Args:
             taskId: 任务ID
             nodes_data: 节点资源需求 {"p1": {"cpu": 10, "ram": 30}, ...}
             links_data: 链路数据（从links_range.json读取）
+            method: 调度算法类型：
+                - "ppo"         : 使用 PPO 智能体（默认）
+                - "heuristic"   : 使用启发式算法（与 four_algorithms_with_balance_test 中一致）
+                - "random"      : 使用随机策略
+                - "ppo_mapping" : 使用 PPO_balance (PPOmapping) 算法
         
         Returns:
             allocation: 节点分配结果
             bandwidth_allocation: 带宽分配结果
         """
-        print(f"🤖 使用PPO算法调度任务 {taskId}")
+        method = (method or "ppo").lower()
+        print(f"🤖 使用调度算法 {method} 调度任务 {taskId}")
         
         self.current_task_id = taskId
         
@@ -120,13 +242,36 @@ class PPOScheduler:
         # 创建虚拟工作
         virtual_work = self._create_virtual_work(taskId, nodes_data, links_data)
         
-        # 使用PPO代理进行调度决策
-        allocation, episode_info, bandwidth_allocation = self._run_ppo_scheduling_with_metrics(virtual_work)
+        # 根据不同算法类型选择不同策略
+        if method == "ppo":
+            allocation, episode_info, bandwidth_allocation = self._run_ppo_scheduling_with_metrics(virtual_work)
+        elif method == "heuristic":
+            allocation, episode_info, bandwidth_allocation = self._run_heuristic_scheduling_with_metrics(virtual_work)
+        elif method == "random":
+            allocation, episode_info, bandwidth_allocation = self._run_random_scheduling_with_metrics(virtual_work)
+        elif method in ("ppo_mapping", "ppo_balance"):
+            if self.is_balance_available():
+                allocation, episode_info, bandwidth_allocation = self._run_balance_scheduling_with_metrics(
+                    virtual_work, topology
+                )
+            else:
+                print("⚠️ PPO_balance 模型不可用，回退到 PPO")
+                allocation, episode_info, bandwidth_allocation = self._run_ppo_scheduling_with_metrics(virtual_work)
+        else:
+            print(f"⚠️ 未知调度算法 '{method}'，回退到 PPO")
+            allocation, episode_info, bandwidth_allocation = self._run_ppo_scheduling_with_metrics(virtual_work)
         
         return allocation, bandwidth_allocation
     
     def _create_network_topology(self) -> NetworkTopology:
-        """根据当前的物理资源创建网络拓扑"""
+        """
+        根据当前的物理资源创建网络拓扑
+        
+        注意：所有CPU值统一使用份数（shares）作为单位，而不是核心数（cores）
+        - emulator.cpu 是核心数，需要转换为份数
+        - emulator.cpuPreMap 已经是份数
+        - cpu_granularity 默认 0.04（即 1 core = 25 shares）
+        """
         num_nodes = len(self.controller.emulator)
         topology = NetworkTopology(num_nodes)
         
@@ -135,15 +280,23 @@ class PPOScheduler:
         self.idx_node_mapping = {}
         
         for emulator in self.controller.emulator.values():
-            used_cpu = emulator.cpuPreMap
+            # CPU单位统一转换为份数（shares）
+            # 假设粒度是0.04（与MockEmulator和真实Emulator一致）
+            cpu_granularity = getattr(emulator, 'cpu_granularity', 0.04)
+            
+            # 将总CPU核心数转换为份数
+            total_cpu_shares = int(emulator.cpu / cpu_granularity)
+            
+            # cpuPreMap 已经是份数，直接使用
+            used_cpu_shares = emulator.cpuPreMap
             used_memory = emulator.ramPreMap
             
             topology.set_node_resources(
                 node_idx, 
-                cpu=emulator.cpu, 
-                memory=emulator.ram,
-                used_cpu=used_cpu,
-                used_memory=used_memory
+                cpu=total_cpu_shares,      # 总CPU份数
+                memory=emulator.ram,       # 内存单位保持GB
+                used_cpu=used_cpu_shares,  # 已用CPU份数
+                used_memory=used_memory    # 已用内存GB
             )
             
             self.node_id_mapping[emulator.nameW] = node_idx
@@ -187,7 +340,11 @@ class PPOScheduler:
         Args:
             taskId: 任务ID
             nodes_data: 节点资源需求 {"p1": {"cpu": 10, "ram": 30}, ...}
+                       - cpu: CPU份数（shares），不是核心数
+                       - ram: 内存大小（GB）
             links_data: 链路带宽需求
+        
+        注意：所有CPU值统一使用份数（shares）作为单位
         """
         virtual_nodes = list(links_data.keys())
         num_virtual_nodes = len(virtual_nodes)
@@ -207,13 +364,14 @@ class PPOScheduler:
             self.virtual_node_names[idx] = node
             
             # 从 nodes_data 中读取 CPU 和 RAM 需求
+            # 注意：nodes_data 中的 cpu 值已经是份数（shares），不是核心数
             if nodes_data and node in nodes_data:
-                cpu_demand = nodes_data[node].get('cpu', 10)
-                ram_demand = nodes_data[node].get('ram', 30)
+                cpu_demand = nodes_data[node].get('cpu', 10)  # CPU份数
+                ram_demand = nodes_data[node].get('ram', 30)  # 内存GB
             else:
                 # 兼容旧格式：如果没有节点资源信息，使用默认值
-                cpu_demand = 10
-                ram_demand = 30
+                cpu_demand = 10  # 默认CPU份数
+                ram_demand = 30  # 默认内存GB
             
             virtual_work.set_node_requirement(idx, cpu_demand, ram_demand)
             print(f"Virtual Node: {node_name}, CPU: {cpu_demand} shares, RAM: {ram_demand} GB")
@@ -335,6 +493,36 @@ class PPOScheduler:
         
         return env
     
+    def _make_balance_env_with_virtual_work(self, virtual_work: VirtualWork, topology: NetworkTopology,
+                                            seed: int = 42) -> PPOBalanceNetworkEnvironment:
+        """
+        基于给定的虚拟工作和真实物理拓扑创建 PPO_balance 环境（用于实际 Controller 调度）。
+        不改变原有训练脚本：训练脚本不会传入 use_external_virtual_work。
+        """
+        num_physical_nodes = len(self.controller.emulator)
+        num_tasks = len(virtual_work.node_requirements)
+        
+        cfg = dict(self.balance_env_config) if hasattr(self, 'balance_env_config') else {}
+        cfg.update({
+            'seed': seed,
+            'num_physical_nodes': num_physical_nodes,
+            # 任务数量范围固定为当前任务数，禁用课程学习
+            'task_nodes_range': (num_tasks, num_tasks),
+            'max_task_nodes': max(num_tasks, cfg.get('max_task_nodes', num_tasks)),
+            'curriculum_enabled': False,
+            # 外部拓扑与虚拟工作（关键）
+            'use_external_virtual_work': True,
+            'external_topology': topology,
+            'external_virtual_work': virtual_work
+        })
+        
+        env = PPOBalanceNetworkEnvironment(**cfg)
+        
+        # 为了与现有提取逻辑兼容，显式挂载 virtual_work_obj 引用
+        env.virtual_work_obj = virtual_work
+        
+        return env
+    
     def _select_action_greedy_with_fallback(self, env, agent: SimpleSequentialAgent, state: Dict) -> int:
         """PPO贪心策略选择动作，带回退机制"""
         agent.eval()
@@ -383,6 +571,109 @@ class PPOScheduler:
                 return False
         return False
     
+    def _select_balance_action_greedy(self, env: PPOBalanceNetworkEnvironment,
+                                      agent: BalanceAgent,
+                                      state: Dict) -> int:
+        """
+        PPO_balance 贪心策略选择动作。
+        逻辑参考 four_algorithms_with_balance_test._select_balance_action_greedy。
+        """
+        agent.eval()
+        with torch.no_grad():
+            physical_resources = state.get('physical_resources')
+            task_requirements = state.get('task_requirements')
+            valid_actions = state.get('valid_actions')
+            
+            action_logits, _, _ = agent.forward(physical_resources, task_requirements)
+            action_probs = torch.softmax(action_logits, dim=0)
+            action_probs = action_probs.detach().cpu().numpy()
+        
+        num_physical_nodes = env.num_physical_nodes
+        candidates = np.argsort(-action_probs[:num_physical_nodes])  # 按概率从大到小排序
+        
+        # 使用 valid_actions 作为可行性约束
+        if valid_actions is not None:
+            for a in candidates:
+                if valid_actions[a].item():
+                    return int(a)
+        
+        # 若均无效，返回得分最高者
+        return int(candidates[0]) if len(candidates) > 0 else 0
+    
+    def _run_balance_scheduling_with_metrics(self, virtual_work: VirtualWork,
+                                             topology: NetworkTopology) -> Tuple[Dict, Dict, Dict]:
+        """
+        使用 PPO_balance (PPOmapping) 进行调度，基于真实 Controller 拓扑和虚拟任务。
+        不影响原有 PPO_balance 训练脚本（该脚本仍使用内部随机拓扑）。
+        """
+        print("⚖️ 开始 PPO_balance (PPOmapping) 环境调度...")
+        if not self.is_balance_available():
+            print("⚠️ PPO_balance 模型不可用，返回空分配方案")
+            return {}, {}, {}
+        
+        try:
+            env = self._make_balance_env_with_virtual_work(virtual_work, topology, seed=42)
+            state = env.reset()
+            
+            # 集成原始奖励计算器（如果可用）
+            self._integrate_original_reward_after_reset(env)
+            
+            done = False
+            total_reward = 0.0
+            steps = 0
+            max_steps = 50
+            
+            episode_info = {
+                'num_virtual_nodes': state.get('num_tasks', len(virtual_work.node_requirements)),
+                'num_virtual_links': len(virtual_work.link_requirements),
+                'algorithm': 'PPO_balance',
+                'steps': 0
+            }
+            
+            while not done and steps < max_steps:
+                action = self._select_balance_action_greedy(env, self.balance_agent, state)
+                state, reward, done, info = env.step(int(action))
+                total_reward += float(reward)
+                steps += 1
+            
+            # 成功判定：检查 episode 是否成功完成
+            success = bool(done and total_reward > 0)
+            
+            # 计算 L 和 D_BW 指标
+            load_balance_degree = 0.0
+            bandwidth_satisfaction = 0.0
+            
+            if (hasattr(env, 'network_scheduler') and env.network_scheduler is not None and
+                    hasattr(env.network_scheduler, 'get_original_reward_components')):
+                try:
+                    components = env.network_scheduler.get_original_reward_components(virtual_work)
+                    load_balance_degree = components.get('L', 0.0)
+                    bandwidth_satisfaction = components.get('D_BW', 0.0)
+                except Exception as e:
+                    print(f"⚠️ PPO_balance 计算 L 和 D_BW 失败: {e}")
+            
+            episode_info.update({
+                'steps': steps,
+                'success': success,
+                'total_reward': total_reward,
+                'load_balance_degree': load_balance_degree,
+                'bandwidth_satisfaction': bandwidth_satisfaction,
+                'env': env
+            })
+            
+            print(f"📊 PPO_balance 调度结果: 奖励={total_reward:.3f}, 成功={success}, 步数={steps}")
+            print(f"   L={load_balance_degree:.4f}, D_BW={bandwidth_satisfaction:.4f}")
+            
+            allocation = self._extract_allocation_from_env(env, episode_info)
+            bandwidth_allocation = self._extract_bandwidth_allocation_from_env(env)
+            
+            return allocation, episode_info, bandwidth_allocation
+        except Exception as e:
+            print(f"❌ PPO_balance 环境调度失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}, {}, {}
+    
     def _run_ppo_scheduling_with_metrics(self, virtual_work: VirtualWork) -> Tuple[Dict, Dict, Dict]:
         """使用PPO代理进行调度决策，返回allocation、episode_info和bandwidth_allocation"""
         print("🤖 开始PPO环境-代理交互调度...")
@@ -415,6 +706,128 @@ class PPOScheduler:
             
         except Exception as e:
             print(f"❌ PPO环境调度失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}, {}, {}
+
+    def _run_heuristic_scheduling_with_metrics(self, virtual_work: VirtualWork) -> Tuple[Dict, Dict, Dict]:
+        """
+        使用启发式算法进行调度，复用与 four_algorithms_with_balance_test 中一致的环境与指标计算逻辑。
+        """
+        print("🧠 开始启发式环境调度...")
+        try:
+            # 复用与 PPO 相同的环境构造方式（使用外部 VirtualWork）
+            env_type = "NewHeuristic"
+            env = self._make_ppo_env_with_virtual_work(virtual_work, seed=42, env_type=env_type)
+            state = env.reset(external_virtual_work=virtual_work)
+
+            # 集成原始奖励计算器
+            self._integrate_original_reward_after_reset(env)
+
+            # 创建启发式代理
+            heuristic_agent = create_heuristic_agent("flexitask")
+
+            # 直接复用测试脚本中的 run_heuristic_episode 逻辑
+            total_reward, success, episode_info = run_heuristic_episode(env, heuristic_agent)
+
+            L_val = episode_info.get('load_balance_degree', 0.0)
+            D_BW_val = episode_info.get('bandwidth_satisfaction', 0.0)
+            print(f"📊 启发式调度结果: 奖励={total_reward:.3f}, 成功={success}, 步数={episode_info['steps']}")
+            print(f"   L={L_val if isinstance(L_val, (int, float)) else 0.0:.4f}, D_BW={D_BW_val if isinstance(D_BW_val, (int, float)) else 0.0:.4f}")
+
+            allocation = self._extract_allocation_from_env(env, episode_info)
+            bandwidth_allocation = self._extract_bandwidth_allocation_from_env(env)
+
+            # 补充算法名称，便于上层日志打印
+            episode_info.setdefault('algorithm', 'Heuristic')
+
+            return allocation, episode_info, bandwidth_allocation
+        except Exception as e:
+            print(f"❌ 启发式环境调度失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}, {}, {}
+
+    def _run_random_scheduling_with_metrics(self, virtual_work: VirtualWork) -> Tuple[Dict, Dict, Dict]:
+        """
+        使用随机算法进行调度，逻辑对齐 four_algorithms_with_balance_test._run_random_episode。
+        """
+        print("🎲 开始随机策略环境调度...")
+        try:
+            env_type = "NewHeuristic"
+            env = self._make_ppo_env_with_virtual_work(virtual_work, seed=42, env_type=env_type)
+            state = env.reset(external_virtual_work=virtual_work)
+
+            # 集成原始奖励计算器
+            self._integrate_original_reward_after_reset(env)
+
+            done = False
+            total_reward = 0.0
+            steps = 0
+            max_steps = 50
+
+            episode_info = {
+                'num_virtual_nodes': state.get('num_virtual_nodes', state.get('num_tasks', 0)),
+                'num_virtual_links': state.get('num_virtual_links', 0),
+                'algorithm': 'Random',
+                'steps': 0
+            }
+
+            import numpy as _np
+
+            while not done and steps < max_steps:
+                # 映射阶段与带宽阶段的随机动作逻辑
+                if state.get('mapping_phase', True):
+                    action = _np.random.randint(0, state.get('num_physical_nodes', env.num_physical_nodes if hasattr(env, 'num_physical_nodes') else 10))
+                else:
+                    if hasattr(env, 'bandwidth_levels'):
+                        action = _np.random.randint(0, env.bandwidth_levels)
+                    else:
+                        action = 0
+
+                state, reward, done, info = env.step(int(action))
+                total_reward += float(reward)
+                steps += 1
+
+            # 成功判定与 four_algorithms_with_balance_test 保持一致
+            if hasattr(env, 'partial_mapping'):
+                all_nodes_mapped = all(node != -1 for node in (env.partial_mapping or []))
+                success = bool(all_nodes_mapped and total_reward > 0)
+            else:
+                success = bool(done and total_reward > 0)
+
+            # 计算 L 和 D_BW 指标
+            load_balance_degree = 0.0
+            bandwidth_satisfaction = 0.0
+
+            if (hasattr(env, 'network_scheduler') and env.network_scheduler is not None and
+                    hasattr(env.network_scheduler, 'get_original_reward_components')):
+                try:
+                    if hasattr(env, 'virtual_work_obj') and env.virtual_work_obj is not None:
+                        components = env.network_scheduler.get_original_reward_components(env.virtual_work_obj)
+                        load_balance_degree = components.get('L', 0.0)
+                        bandwidth_satisfaction = components.get('D_BW', 0.0)
+                except Exception as e:
+                    print(f"⚠️ 随机策略获取指标失败: {e}")
+
+            episode_info.update({
+                'steps': steps,
+                'success': success,
+                'total_reward': total_reward,
+                'load_balance_degree': load_balance_degree,
+                'bandwidth_satisfaction': bandwidth_satisfaction,
+                'env': env
+            })
+
+            print(f"📊 随机调度结果: 奖励={total_reward:.3f}, 成功={success}, 步数={steps}")
+            print(f"   L={load_balance_degree:.4f}, D_BW={bandwidth_satisfaction:.4f}")
+
+            allocation = self._extract_allocation_from_env(env, episode_info)
+            bandwidth_allocation = self._extract_bandwidth_allocation_from_env(env)
+
+            return allocation, episode_info, bandwidth_allocation
+        except Exception as e:
+            print(f"❌ 随机环境调度失败: {e}")
             import traceback
             traceback.print_exc()
             return {}, {}, {}

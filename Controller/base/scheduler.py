@@ -23,77 +23,11 @@ class Scheduler(object):
         self.current_log_file = None
         self.node_count = 0
         
-        # 初始化PPO调度器
+        # 初始化PPO调度器（支持多种基于 PPO 环境的调度策略）
         self.ppo_scheduler = PPOScheduler(controller)
         
-    # def record_load(self, node_count: int, allocation: Dict):
-    #     """记录当前负载情况"""
-    #     if self.current_log_file is None:
-    #         # 使用时间戳创建新的日志文件
-    #         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    #         self.current_log_file = os.path.join(self.log_dir, f'load_log_{timestamp}.csv')
-    #         # 创建表头
-    #         with open(self.current_log_file, 'w') as f:
-    #             f.write('nodes,cpu_load,ram_load,bw_load\n')
-        
-    #     # 计算总负载
-    #     total_cpu_load = 0
-    #     total_ram_load = 0
-    #     total_cpu_capacity = 0
-    #     total_ram_capacity = 0
-        
-    #     # 计算 CPU 和 RAM 负载
-    #     for emulator in self.controller.emulator.values():
-    #         total_cpu_load += emulator.cpuPreMap
-    #         total_ram_load += emulator.ramPreMap
-    #         total_cpu_capacity += emulator.cpu
-    #         total_ram_capacity += emulator.ram
-            
-    #     # 计算带宽负载
-    #     total_bw_capacity = 0
-    #     total_bw_used = 0
-    #     for emu1, emu2, bw, used_bw in self.controller.iter_bandwidth():
-    #         total_bw_capacity += bw
-    #         total_bw_used += used_bw
-            
-    #     # 计算负载率
-    #     cpu_load_ratio = total_cpu_load / total_cpu_capacity if total_cpu_capacity > 0 else 0
-    #     ram_load_ratio = total_ram_load / total_ram_capacity if total_ram_capacity > 0 else 0
-    #     bw_load_ratio = total_bw_used / total_bw_capacity if total_bw_capacity > 0 else 0
-        
-    #     # 记录到文件
-    #     with open(self.current_log_file, 'a') as f:
-    #         f.write(f'{node_count},{cpu_load_ratio},{ram_load_ratio},{bw_load_ratio}\n')
-            
-    # def plot_load_history(self):
-    #     """生成负载历史图表"""
-    #     if not self.current_log_file or not os.path.exists(self.current_log_file):
-    #         print("没有找到负载记录文件")
-    #         return
-            
-    #     # 读取数据
-    #     df = pd.read_csv(self.current_log_file)
-        
-    #     # 创建图表
-    #     plt.figure(figsize=(10, 6))
-    #     plt.plot(df['nodes'], df['cpu_load'], 'r-', label='CPU Load')
-    #     plt.plot(df['nodes'], df['ram_load'], 'b-', label='RAM Load')
-    #     plt.plot(df['nodes'], df['bw_load'], 'g-', label='Bandwidth Load')
-        
-    #     plt.xlabel('Number of Nodes')
-    #     plt.ylabel('Load Ratio')
-    #     plt.title('Resource Load History')
-    #     plt.grid(True)
-    #     plt.legend()
-        
-    #     # 保存图表
-    #     plot_file = self.current_log_file.replace('.csv', '.png')
-    #     plt.savefig(plot_file)
-    #     plt.close()
-        
-    #     print(f"负载历史图表已保存到: {plot_file}")
 
-    def resource_schedule(self, taskId: int) -> Dict:
+    def resource_schedule(self, taskId: int, method: str = "ppo") -> Dict:
         """
         使用PPO模型进行资源调度
         读取links_range.json，调度后生成links.json
@@ -125,27 +59,45 @@ class Scheduler(object):
             nodes_data = {}
             links_data = full_data
         
-        # 尝试使用PPO算法
-        if self.ppo_scheduler.is_available():
+        # 根据调度方法检查相应的模型是否可用
+        method_lower = method.lower()
+        is_method_available = False
+        
+        if method_lower in ("ppo", "heuristic", "random"):
+            # PPO、启发式和随机算法使用同一个环境，只需要 ppo_agent 可用
+            is_method_available = self.ppo_scheduler.is_available()
+        elif method_lower in ("ppo_mapping", "ppo_balance"):
+            # PPO_mapping 需要 balance_agent 可用
+            is_method_available = self.ppo_scheduler.is_balance_available()
+        else:
+            # 未知方法，尝试使用 PPO
+            is_method_available = self.ppo_scheduler.is_available()
+        
+        # 尝试使用基于 PPO 环境的调度算法
+        if is_method_available:
             try:
-                allocation, bandwidth_allocation = self.ppo_scheduler.schedule(taskId, nodes_data, links_data)
+                allocation, bandwidth_allocation = self.ppo_scheduler.schedule(
+                    taskId, nodes_data, links_data, method=method
+                )
                 
                 if allocation:
                     # 更新节点计数
                     self.node_count += len(allocation)
-                    # 记录负载情况
-                    # self.record_load(self.node_count, allocation)
                     # 生成links.json文件
                     self._generate_links_json(taskId, links_data, bandwidth_allocation)
-                    # 生成负载历史图表
-                    # self.plot_load_history()
                     print("Allocation:", allocation)
                     return allocation
                     
             except Exception as e:
-                print(f"❌ PPO调度失败，回退到GA算法: {e}")
+                print(f"❌ {method} 调度失败，回退到GA算法: {e}")
                 import traceback
                 traceback.print_exc()
+        else:
+            # 如果方法不可用，打印警告信息
+            if method_lower in ("ppo_mapping", "ppo_balance"):
+                print(f"⚠️ {method} 方法不可用：PPO_balance 模型未加载，回退到GA算法")
+            else:
+                print(f"⚠️ {method} 方法不可用：PPO 模型未加载，回退到GA算法")
         
         # PPO失败时回退到GA算法
         return self._schedule_with_ga(taskId, nodes_data, links_data)

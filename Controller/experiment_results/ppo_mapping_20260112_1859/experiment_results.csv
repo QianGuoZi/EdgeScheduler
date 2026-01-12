@@ -1,0 +1,6 @@
+experiment_id,dataset_id,timestamp,status,load_balance_degree,bandwidth_satisfaction,composite_score,error
+1,1,2026-01-12T18:59:22.977175,success,0.1954,0.8889,0.84675,
+2,2,2026-01-12T19:00:44.233196,success,0.2206,0.9,0.8397,
+3,3,2026-01-12T19:02:34.068621,success,0.2145,0.88,0.83275,
+4,4,2026-01-12T19:04:15.931171,success,0.1786,0.9333,0.8773500000000001,
+5,5,2026-01-12T19:05:52.622070,success,0.1917,0.95,0.87915,

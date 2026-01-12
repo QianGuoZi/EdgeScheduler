@@ -1,0 +1,52 @@
+[
+  {
+    "experiment_id": 1,
+    "dataset_id": 1,
+    "timestamp": "2026-01-12T18:03:05.859439",
+    "status": "success",
+    "load_balance_degree": 0.2547,
+    "bandwidth_satisfaction": 1.0,
+    "composite_score": 0.87265,
+    "error": null
+  },
+  {
+    "experiment_id": 2,
+    "dataset_id": 2,
+    "timestamp": "2026-01-12T18:05:30.606485",
+    "status": "success",
+    "load_balance_degree": 0.2713,
+    "bandwidth_satisfaction": 0.8882,
+    "composite_score": 0.80845,
+    "error": null
+  },
+  {
+    "experiment_id": 3,
+    "dataset_id": 3,
+    "timestamp": "2026-01-12T18:07:51.733859",
+    "status": "success",
+    "load_balance_degree": 0.2632,
+    "bandwidth_satisfaction": 0.9215,
+    "composite_score": 0.82915,
+    "error": null
+  },
+  {
+    "experiment_id": 4,
+    "dataset_id": 4,
+    "timestamp": "2026-01-12T18:09:57.088115",
+    "status": "success",
+    "load_balance_degree": 0.2753,
+    "bandwidth_satisfaction": 0.7336,
+    "composite_score": 0.72915,
+    "error": null
+  },
+  {
+    "experiment_id": 5,
+    "dataset_id": 5,
+    "timestamp": "2026-01-12T18:12:11.547174",
+    "status": "success",
+    "load_balance_degree": 0.2719,
+    "bandwidth_satisfaction": 0.6525,
+    "composite_score": 0.6902999999999999,
+    "error": null
+  }
+]

@@ -19,8 +19,8 @@ services:
     tty: true
     cap_add:
       - NET_ADMIN
-    cpus: 1.48
-    mem_limit: 28.0G
+    cpus: 0.72
+    mem_limit: 43.0G
     environment:
       - EDGE_TB_ID=1
       - NET_NODE_NAME=1_p1
@@ -28,7 +28,7 @@ services:
       - NET_CTL_ADDRESS=100.68.1.50:3333
       - NET_AGENT_ADDRESS=100.68.1.6:3333
       - NET_TASK_ID=1
-      - NET_LOG_TIMESTAMP=2026-01-08-18-17-56
+      - NET_LOG_TIMESTAMP=2026-01-12-19-11-25
     healthcheck:
       test: curl -f http://localhost:4444/hi
     ports:
@@ -46,8 +46,8 @@ services:
     tty: true
     cap_add:
       - NET_ADMIN
-    cpus: 0.6
-    mem_limit: 43.0G
+    cpus: 0.4
+    mem_limit: 17.0G
     environment:
       - EDGE_TB_ID=2
       - NET_NODE_NAME=1_n1
@@ -55,7 +55,7 @@ services:
       - NET_CTL_ADDRESS=100.68.1.50:3333
       - NET_AGENT_ADDRESS=100.68.1.6:3333
       - NET_TASK_ID=1
-      - NET_LOG_TIMESTAMP=2026-01-08-18-17-56
+      - NET_LOG_TIMESTAMP=2026-01-12-19-11-25
     healthcheck:
       test: curl -f http://localhost:4444/hi
     ports:

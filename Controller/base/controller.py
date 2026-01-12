@@ -207,17 +207,23 @@ class Controller(object):
         while not self.stop_processing:
             if not self.pending_tasks.empty():
                 with self.lock:
-                    task_id = self.pending_tasks.get()
+                    task_info = self.pending_tasks.get()
+                    # 兼容旧格式：如果只传入了task_id，则使用默认方法
+                    if isinstance(task_info, tuple):
+                        task_id, method = task_info
+                    else:
+                        task_id = task_info
+                        method = "ppo"
                     try:
                         # 调用scheduler进行调度
-                        print(f"开始调度任务: {task_id}")
+                        print(f"开始调度任务: {task_id}, 使用调度方法: {method}")
                         # 使用事件来等待调度完成
                         scheduling_event = threading.Event()
                         
                         def schedule_task():
                             nonlocal allocation
                             try:
-                                allocation = self.scheduler.resource_schedule(task_id)
+                                allocation = self.scheduler.resource_schedule(task_id, method=method)
                             finally:
                                 scheduling_event.set()
                         
@@ -263,10 +269,15 @@ class Controller(object):
                             self.scheduled_tasks.put((task_id, allocation))
             time.sleep(1)
 
-    def add_pending_task(self, task_id: int):
-        """添加待调度任务"""
-        print(f"添加待调度任务: {task_id}")
-        self.pending_tasks.put(task_id)
+    def add_pending_task(self, task_id: int, method: str = "ppo"):
+        """添加待调度任务
+        
+        Args:
+            task_id: 任务ID
+            method: 调度方法，默认为 "ppo"
+        """
+        print(f"添加待调度任务: {task_id}, 调度方法: {method}")
+        self.pending_tasks.put((task_id, method))
 
     def get_scheduled_task(self) -> tuple:
         """获取已调度的任务"""

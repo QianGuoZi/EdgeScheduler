@@ -139,6 +139,12 @@ class PPOBalanceNetworkEnvironment:
                  seed: int = None,
                  **kwargs):  # 接受其他可能的参数以增强兼容性
         
+        # 提取用于“外部拓扑 + 外部虚拟工作”模式的参数（用于实际 Controller 调度）
+        # 对于原有训练脚本，这些参数默认不存在，不会影响原有行为
+        self.use_external_virtual_work: bool = kwargs.pop('use_external_virtual_work', False)
+        self.external_topology: Optional[NetworkTopology] = kwargs.pop('external_topology', None)
+        self.external_virtual_work: Optional[VirtualWork] = kwargs.pop('external_virtual_work', None)
+        
         # 处理兼容性参数
         if max_task_nodes is not None:
             # 如果提供了max_task_nodes，调整task_nodes_range的上限
@@ -146,7 +152,7 @@ class PPOBalanceNetworkEnvironment:
             task_nodes_range = (min_tasks, min(max_tasks, max_task_nodes))
             print(f"🔧 使用max_task_nodes参数调整任务范围为: {task_nodes_range}")
         
-        # 忽略不支持的kwargs参数但记录日志
+        # 忽略剩余不支持的kwargs参数但记录日志（保持向后兼容）
         if kwargs:
             print(f"⚠️ 忽略不支持的参数: {list(kwargs.keys())}")
         
@@ -208,14 +214,37 @@ class PPOBalanceNetworkEnvironment:
         self.current_task_index = 0
         self.task_mapping = {}
         
-        # 生成物理拓扑
-        self._generate_physical_topology()
+        # 如果启用了外部拓扑和虚拟工作模式，则直接使用外部提供的结构
+        if self.use_external_virtual_work and self.external_topology is not None and self.external_virtual_work is not None:
+            print("🔄 PPO_balance环境重置: 使用外部拓扑与虚拟任务（Controller 实际调度模式）")
+            
+            # 使用外部提供的拓扑和虚拟工作
+            self.network_topology = self.external_topology
+            self.virtual_work = self.external_virtual_work
+            
+            # 根据 VirtualWork 构造任务队列（任务ID与 VirtualWork 中的索引保持一致）
+            self.task_queue = []
+            for task_id, req in self.virtual_work.node_requirements.items():
+                self.task_queue.append({
+                    'id': task_id,
+                    'cpu_demand': req.get('cpu', 10),
+                    'memory_demand': req.get('memory', 30),
+                })
+            
+            # 使用给定拓扑与虚拟工作初始化 NetworkScheduler
+            self.network_scheduler = NetworkScheduler(self.network_topology)
+            self.network_scheduler.add_virtual_work(self.virtual_work, work_id="balance_work")
         
-        # 生成任务队列
-        self._generate_task_queue()
-        
-        # 初始化网络调度器
-        self._initialize_network_scheduler()
+        else:
+            # 原训练模式：随机生成物理拓扑与任务
+            # 生成物理拓扑
+            self._generate_physical_topology()
+            
+            # 生成任务队列
+            self._generate_task_queue()
+            
+            # 初始化网络调度器
+            self._initialize_network_scheduler()
         
         # 重置统计信息
         self.episode_stats = {

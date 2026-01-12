@@ -1,0 +1,9 @@
+version: "2.4"
+services:
+  emulator-6_bgload_1768216268:
+    container_name: emulator-6_bgload_1768216268
+    image: stress:latest
+    cpus: 1.6
+    mem_limit: 44G
+    restart: unless-stopped
+    command: stress-ng --cpu 1 --vm 1 --vm-bytes 44G --timeout 0

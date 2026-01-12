@@ -3,14 +3,14 @@
     "emulator-4": {
       "ip": "100.68.1.6"
     },
-    "emulator-1": {
-      "ip": "100.68.1.3"
-    },
     "emulator-5": {
       "ip": "100.68.2.1"
     },
     "emulator-3": {
       "ip": "100.68.1.5"
+    },
+    "emulator-1": {
+      "ip": "100.68.1.3"
     }
   },
   "emulated_node": {
@@ -24,20 +24,20 @@
       "port": "8002",
       "emulator": "emulator-4"
     },
-    "1_n2": {
-      "ip": "100.68.1.3",
-      "port": "8003",
-      "emulator": "emulator-1"
-    },
-    "1_n3": {
+    "1_n4": {
       "ip": "100.68.2.1",
-      "port": "8004",
+      "port": "8003",
       "emulator": "emulator-5"
     },
-    "1_n4": {
+    "1_n2": {
       "ip": "100.68.1.5",
-      "port": "8005",
+      "port": "8004",
       "emulator": "emulator-3"
+    },
+    "1_n3": {
+      "ip": "100.68.1.3",
+      "port": "8005",
+      "emulator": "emulator-1"
     }
   },
   "physical_node": {}

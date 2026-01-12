@@ -150,9 +150,11 @@ class Manager(object):
             3. 当发现已调度的任务时启动对应容器
             """
             taskID = int(request.args.get('taskId'))
-            # 将任务添加到待调度队列
-            print(f"Task {taskID} is submitted for scheduling.")
-            self.controller.add_pending_task(taskID)
+            # 获取调度方法参数（可选，默认为 "ppo"）
+            scheduler_method = request.args.get('scheduler_method', 'ppo')
+            # 将任务添加到待调度队列（包含调度方法）
+            print(f"Task {taskID} is submitted for scheduling with method: {scheduler_method}")
+            self.controller.add_pending_task(taskID, scheduler_method)
             return 'Task submitted for scheduling'
         
         # def task_schedule(taskId: int):
@@ -175,7 +177,8 @@ class Manager(object):
                 return 'Task deployed'
             elif any(t[0] == taskID for t in self.controller.scheduled_tasks.queue):
                 return 'Task scheduled'
-            elif taskID in self.controller.pending_tasks.queue:
+            elif any((t[0] == taskID if isinstance(t, tuple) else t == taskID) 
+                     for t in self.controller.pending_tasks.queue):
                 return 'Task pending'
             return 'Task not found'
         

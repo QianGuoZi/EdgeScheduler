@@ -20,15 +20,15 @@ services:
     cap_add:
       - NET_ADMIN
     cpus: 2.0
-    mem_limit: 45.0G
+    mem_limit: 45G
     environment:
       - EDGE_TB_ID=3
       - NET_NODE_NAME=1_n4
       - NODE_PORT=4444
       - NET_CTL_ADDRESS=100.68.1.50:3333
-      - NET_AGENT_ADDRESS=100.68.2.1:3333
+      - NET_AGENT_ADDRESS=100.68.2.2:3333
       - NET_TASK_ID=1
-      - NET_LOG_TIMESTAMP=2026-01-12-19-11-25
+      - NET_LOG_TIMESTAMP=2026-01-12-18-24-06
     healthcheck:
       test: curl -f http://localhost:4444/hi
     ports:
