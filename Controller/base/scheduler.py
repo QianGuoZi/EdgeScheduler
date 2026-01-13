@@ -63,8 +63,8 @@ class Scheduler(object):
         method_lower = method.lower()
         is_method_available = False
         
-        if method_lower in ("ppo", "heuristic", "random"):
-            # PPO、启发式和随机算法使用同一个环境，只需要 ppo_agent 可用
+        if method_lower in ("ppo", "heuristic", "smart", "random"):
+            # PPO、启发式、Smart 和随机算法使用同一个环境，只需要 ppo_agent 可用
             is_method_available = self.ppo_scheduler.is_available()
         elif method_lower in ("ppo_mapping", "ppo_balance"):
             # PPO_mapping 需要 balance_agent 可用

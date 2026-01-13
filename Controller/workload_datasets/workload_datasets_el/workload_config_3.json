@@ -1,0 +1,349 @@
+{
+  "description": "模拟各emulator上已有负载的配置文件 - 利用率0.1-0.5随机（全连接拓扑，非双向对称）",
+  "workloads": {
+    "emulator-1": {
+      "cpu": 1.52,
+      "ram": 97,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-2": {
+      "cpu": 1.68,
+      "ram": 122,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-3": {
+      "cpu": 1.28,
+      "ram": 78,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-4": {
+      "cpu": 1.64,
+      "ram": 48,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-5": {
+      "cpu": 1.52,
+      "ram": 98,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-6": {
+      "cpu": 1.2,
+      "ram": 73,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-7": {
+      "cpu": 0.52,
+      "ram": 115,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-8": {
+      "cpu": 0.88,
+      "ram": 88,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-9": {
+      "cpu": 0.48,
+      "ram": 66,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    },
+    "emulator-10": {
+      "cpu": 1.8,
+      "ram": 88,
+      "unit": "G",
+      "image": "stress:latest",
+      "enabled": true
+    }
+  },
+  "links": {
+    "emulator-5": [
+      {
+        "dest": "emulator-8",
+        "bw": "435mbps"
+      },
+      {
+        "dest": "emulator-10",
+        "bw": "459mbps"
+      },
+      {
+        "dest": "emulator-1",
+        "bw": "459mbps"
+      },
+      {
+        "dest": "emulator-3",
+        "bw": "319mbps"
+      },
+      {
+        "dest": "emulator-2",
+        "bw": "456mbps"
+      },
+      {
+        "dest": "emulator-7",
+        "bw": "236mbps"
+      }
+    ],
+    "emulator-2": [
+      {
+        "dest": "emulator-9",
+        "bw": "148mbps"
+      },
+      {
+        "dest": "emulator-8",
+        "bw": "278mbps"
+      },
+      {
+        "dest": "emulator-10",
+        "bw": "267mbps"
+      },
+      {
+        "dest": "emulator-1",
+        "bw": "114mbps"
+      },
+      {
+        "dest": "emulator-4",
+        "bw": "205mbps"
+      },
+      {
+        "dest": "emulator-6",
+        "bw": "440mbps"
+      }
+    ],
+    "emulator-6": [
+      {
+        "dest": "emulator-3",
+        "bw": "313mbps"
+      },
+      {
+        "dest": "emulator-8",
+        "bw": "176mbps"
+      },
+      {
+        "dest": "emulator-7",
+        "bw": "343mbps"
+      },
+      {
+        "dest": "emulator-5",
+        "bw": "375mbps"
+      },
+      {
+        "dest": "emulator-4",
+        "bw": "189mbps"
+      },
+      {
+        "dest": "emulator-10",
+        "bw": "447mbps"
+      }
+    ],
+    "emulator-10": [
+      {
+        "dest": "emulator-8",
+        "bw": "465mbps"
+      },
+      {
+        "dest": "emulator-1",
+        "bw": "297mbps"
+      },
+      {
+        "dest": "emulator-4",
+        "bw": "351mbps"
+      },
+      {
+        "dest": "emulator-7",
+        "bw": "205mbps"
+      },
+      {
+        "dest": "emulator-6",
+        "bw": "337mbps"
+      },
+      {
+        "dest": "emulator-3",
+        "bw": "270mbps"
+      }
+    ],
+    "emulator-1": [
+      {
+        "dest": "emulator-8",
+        "bw": "115mbps"
+      },
+      {
+        "dest": "emulator-4",
+        "bw": "239mbps"
+      },
+      {
+        "dest": "emulator-2",
+        "bw": "358mbps"
+      },
+      {
+        "dest": "emulator-10",
+        "bw": "104mbps"
+      },
+      {
+        "dest": "emulator-6",
+        "bw": "330mbps"
+      },
+      {
+        "dest": "emulator-9",
+        "bw": "294mbps"
+      },
+      {
+        "dest": "emulator-5",
+        "bw": "204mbps"
+      }
+    ],
+    "emulator-7": [
+      {
+        "dest": "emulator-4",
+        "bw": "361mbps"
+      },
+      {
+        "dest": "emulator-3",
+        "bw": "328mbps"
+      },
+      {
+        "dest": "emulator-8",
+        "bw": "315mbps"
+      },
+      {
+        "dest": "emulator-9",
+        "bw": "423mbps"
+      },
+      {
+        "dest": "emulator-1",
+        "bw": "169mbps"
+      },
+      {
+        "dest": "emulator-2",
+        "bw": "153mbps"
+      },
+      {
+        "dest": "emulator-6",
+        "bw": "361mbps"
+      }
+    ],
+    "emulator-8": [
+      {
+        "dest": "emulator-4",
+        "bw": "359mbps"
+      },
+      {
+        "dest": "emulator-5",
+        "bw": "404mbps"
+      },
+      {
+        "dest": "emulator-7",
+        "bw": "312mbps"
+      },
+      {
+        "dest": "emulator-2",
+        "bw": "389mbps"
+      },
+      {
+        "dest": "emulator-10",
+        "bw": "211mbps"
+      },
+      {
+        "dest": "emulator-6",
+        "bw": "290mbps"
+      }
+    ],
+    "emulator-4": [
+      {
+        "dest": "emulator-5",
+        "bw": "314mbps"
+      },
+      {
+        "dest": "emulator-8",
+        "bw": "154mbps"
+      },
+      {
+        "dest": "emulator-7",
+        "bw": "323mbps"
+      },
+      {
+        "dest": "emulator-10",
+        "bw": "216mbps"
+      },
+      {
+        "dest": "emulator-1",
+        "bw": "391mbps"
+      },
+      {
+        "dest": "emulator-3",
+        "bw": "267mbps"
+      }
+    ],
+    "emulator-9": [
+      {
+        "dest": "emulator-8",
+        "bw": "281mbps"
+      },
+      {
+        "dest": "emulator-5",
+        "bw": "314mbps"
+      },
+      {
+        "dest": "emulator-4",
+        "bw": "423mbps"
+      },
+      {
+        "dest": "emulator-10",
+        "bw": "367mbps"
+      },
+      {
+        "dest": "emulator-6",
+        "bw": "473mbps"
+      },
+      {
+        "dest": "emulator-3",
+        "bw": "304mbps"
+      }
+    ],
+    "emulator-3": [
+      {
+        "dest": "emulator-5",
+        "bw": "287mbps"
+      },
+      {
+        "dest": "emulator-7",
+        "bw": "182mbps"
+      },
+      {
+        "dest": "emulator-8",
+        "bw": "369mbps"
+      },
+      {
+        "dest": "emulator-10",
+        "bw": "408mbps"
+      },
+      {
+        "dest": "emulator-9",
+        "bw": "311mbps"
+      },
+      {
+        "dest": "emulator-4",
+        "bw": "357mbps"
+      },
+      {
+        "dest": "emulator-6",
+        "bw": "381mbps"
+      }
+    ]
+  }
+}

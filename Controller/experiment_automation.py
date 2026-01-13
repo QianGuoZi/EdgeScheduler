@@ -19,8 +19,19 @@ from pathlib import Path
 CONTROLLER_DIR = '/home/qianguo/Edge-Scheduler/Controller'
 WORKLOAD_CONFIG_PATH = os.path.join(CONTROLLER_DIR, 'workload_config.json')
 TASK_LINKS_CONFIG_PATH = os.path.join(CONTROLLER_DIR, 'task_links', '1', 'links_range.json')
-WORKLOAD_DATASETS_DIR = os.path.join(CONTROLLER_DIR, 'workload_datasets')
-DATASETS_INDEX_PATH = os.path.join(WORKLOAD_DATASETS_DIR, 'datasets_index.json')
+
+# 不同任务类型的数据集目录（el / gl / ra）
+# 目录结构调整为：
+# Controller/workload_datasets/
+#   ├─ workload_datasets_el/
+#   ├─ workload_datasets_gl/
+#   └─ workload_datasets_ra/
+WORKLOAD_DATASETS_ROOT = os.path.join(CONTROLLER_DIR, 'workload_datasets')
+DATASET_DIR_MAP = {
+    'el': os.path.join(WORKLOAD_DATASETS_ROOT, 'workload_datasets_el'),
+    'gl': os.path.join(WORKLOAD_DATASETS_ROOT, 'workload_datasets_gl'),
+    'ra': os.path.join(WORKLOAD_DATASETS_ROOT, 'workload_datasets_ra'),
+}
 RUN_AGENTS_SCRIPT = os.path.join(CONTROLLER_DIR, '..', 'run_agents.sh')
 MANAGE_CONTAINERS_SCRIPT = os.path.join(CONTROLLER_DIR, '..', 'manage_containers.sh')
 TEST_PY_PATH = os.path.join(CONTROLLER_DIR, 'test.py')
@@ -37,12 +48,21 @@ EXPERIMENT_RESULTS_DIR = os.path.join(CONTROLLER_DIR, 'experiment_results')
 class ExperimentAutomation:
     """实验自动化类"""
     
-    def __init__(self, scheduler_method: str = "ppo"):
+    def __init__(self, scheduler_method: str = "ppo", dataset_type: str = "el"):
         self.results = []
         self.current_experiment_id = 0
         # 记录调度算法类型，用于在调用 Controller 接口时传递
         # 可选值示例: "ppo", "heuristic", "random"
         self.scheduler_method = scheduler_method
+
+        # 记录任务/数据集类型（el / gl / ra）
+        self.dataset_type = dataset_type
+
+        # 根据任务类型选择对应的数据集目录
+        if dataset_type not in DATASET_DIR_MAP:
+            raise ValueError(f"不支持的数据集类型: {dataset_type}，可选值: el / gl / ra")
+        self.workload_datasets_dir = DATASET_DIR_MAP[dataset_type]
+        self.datasets_index_path = os.path.join(self.workload_datasets_dir, 'datasets_index.json')
 
         # 创建根结果目录
         os.makedirs(EXPERIMENT_RESULTS_DIR, exist_ok=True)
@@ -62,12 +82,12 @@ class ExperimentAutomation:
     
     def load_datasets_index(self) -> Dict:
         """加载数据集索引"""
-        with open(DATASETS_INDEX_PATH, 'r', encoding='utf-8') as f:
+        with open(self.datasets_index_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     
     def update_workload_config(self, dataset_id: int) -> bool:
         """更新workload_config.json"""
-        workload_file = os.path.join(WORKLOAD_DATASETS_DIR, f'workload_config_{dataset_id}.json')
+        workload_file = os.path.join(self.workload_datasets_dir, f'workload_config_{dataset_id}.json')
         if not os.path.exists(workload_file):
             print(f"❌ 负载数据文件不存在: {workload_file}")
             return False
@@ -83,7 +103,7 @@ class ExperimentAutomation:
     
     def update_task_links_config(self, dataset_id: int) -> bool:
         """更新task_links/1/links_range.json"""
-        task_links_file = os.path.join(WORKLOAD_DATASETS_DIR, f'task_links_config_{dataset_id}.json')
+        task_links_file = os.path.join(self.workload_datasets_dir, f'task_links_config_{dataset_id}.json')
         if not os.path.exists(task_links_file):
             print(f"❌ 任务请求数据文件不存在: {task_links_file}")
             return False
@@ -585,13 +605,19 @@ def main():
     parser.add_argument('--runs', type=int, default=1,
                        help='每个数据集运行的次数 (默认: 1)')
     parser.add_argument('--method', type=str, default='ppo',
-                       choices=['ppo', 'heuristic', 'random', 'ppo_mapping', 'ppo_balance'],
-                       help='调度算法类型: ppo / heuristic / random / ppo_mapping (默认: ppo)')
+                       choices=['ppo', 'heuristic', 'smart', 'random', 'ppo_mapping', 'ppo_balance'],
+                       help='调度算法类型: ppo / heuristic / smart / random / ppo_mapping (默认: ppo)')
+    parser.add_argument('--dataset-type', type=str, default='el',
+                       choices=['el', 'gl', 'ra'],
+                       help='数据集类型: el / gl / ra (默认: el)')
     
     args = parser.parse_args()
     
-    # 根据命令行参数选择调度算法，传入 ExperimentAutomation
-    automation = ExperimentAutomation(scheduler_method=args.method)
+    # 根据命令行参数选择调度算法和数据集类型，传入 ExperimentAutomation
+    automation = ExperimentAutomation(
+        scheduler_method=args.method,
+        dataset_type=args.dataset_type
+    )
     automation.run_experiments(args.datasets, args.runs)
 
 

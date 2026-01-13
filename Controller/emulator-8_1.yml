@@ -19,20 +19,20 @@ services:
     tty: true
     cap_add:
       - NET_ADMIN
-    cpus: 0.92
-    mem_limit: 11G
+    cpus: 1.96
+    mem_limit: 26.0G
     environment:
-      - EDGE_TB_ID=3
+      - EDGE_TB_ID=1
       - NET_NODE_NAME=1_n1
       - NODE_PORT=4444
       - NET_CTL_ADDRESS=100.68.1.50:3333
       - NET_AGENT_ADDRESS=100.68.2.4:3333
       - NET_TASK_ID=1
-      - NET_LOG_TIMESTAMP=2026-01-12-18-21-50
+      - NET_LOG_TIMESTAMP=2026-01-13-17-28-58
     healthcheck:
       test: curl -f http://localhost:4444/hi
     ports:
-      - "8003:4444"
+      - "8001:4444"
     volumes:
       - ../dml_file:/home/qianguo/EdgeScheduler/Worker/dml_file
       - dml_app:/home/qianguo/EdgeScheduler/Worker/dml_app/:ro

@@ -223,7 +223,8 @@ class PPOScheduler:
             links_data: 链路数据（从links_range.json读取）
             method: 调度算法类型：
                 - "ppo"         : 使用 PPO 智能体（默认）
-                - "heuristic"   : 使用启发式算法（与 four_algorithms_with_balance_test 中一致）
+                - "heuristic"   : 使用 FlexiTask 启发式算法
+                - "smart"       : 使用 Smart 启发式算法
                 - "random"      : 使用随机策略
                 - "ppo_mapping" : 使用 PPO_balance (PPOmapping) 算法
         
@@ -247,6 +248,8 @@ class PPOScheduler:
             allocation, episode_info, bandwidth_allocation = self._run_ppo_scheduling_with_metrics(virtual_work)
         elif method == "heuristic":
             allocation, episode_info, bandwidth_allocation = self._run_heuristic_scheduling_with_metrics(virtual_work)
+        elif method == "smart":
+            allocation, episode_info, bandwidth_allocation = self._run_smart_scheduling_with_metrics(virtual_work)
         elif method == "random":
             allocation, episode_info, bandwidth_allocation = self._run_random_scheduling_with_metrics(virtual_work)
         elif method in ("ppo_mapping", "ppo_balance"):
@@ -712,9 +715,9 @@ class PPOScheduler:
 
     def _run_heuristic_scheduling_with_metrics(self, virtual_work: VirtualWork) -> Tuple[Dict, Dict, Dict]:
         """
-        使用启发式算法进行调度，复用与 four_algorithms_with_balance_test 中一致的环境与指标计算逻辑。
+        使用 FlexiTask 启发式算法进行调度，复用与 four_algorithms_with_balance_test 中一致的环境与指标计算逻辑。
         """
-        print("🧠 开始启发式环境调度...")
+        print("🧠 开始 FlexiTask 启发式环境调度...")
         try:
             # 复用与 PPO 相同的环境构造方式（使用外部 VirtualWork）
             env_type = "NewHeuristic"
@@ -724,7 +727,7 @@ class PPOScheduler:
             # 集成原始奖励计算器
             self._integrate_original_reward_after_reset(env)
 
-            # 创建启发式代理
+            # 创建 FlexiTask 启发式代理
             heuristic_agent = create_heuristic_agent("flexitask")
 
             # 直接复用测试脚本中的 run_heuristic_episode 逻辑
@@ -732,18 +735,56 @@ class PPOScheduler:
 
             L_val = episode_info.get('load_balance_degree', 0.0)
             D_BW_val = episode_info.get('bandwidth_satisfaction', 0.0)
-            print(f"📊 启发式调度结果: 奖励={total_reward:.3f}, 成功={success}, 步数={episode_info['steps']}")
+            print(f"📊 FlexiTask 启发式调度结果: 奖励={total_reward:.3f}, 成功={success}, 步数={episode_info['steps']}")
             print(f"   L={L_val if isinstance(L_val, (int, float)) else 0.0:.4f}, D_BW={D_BW_val if isinstance(D_BW_val, (int, float)) else 0.0:.4f}")
 
             allocation = self._extract_allocation_from_env(env, episode_info)
             bandwidth_allocation = self._extract_bandwidth_allocation_from_env(env)
 
             # 补充算法名称，便于上层日志打印
-            episode_info.setdefault('algorithm', 'Heuristic')
+            episode_info.setdefault('algorithm', 'FlexiTask')
 
             return allocation, episode_info, bandwidth_allocation
         except Exception as e:
-            print(f"❌ 启发式环境调度失败: {e}")
+            print(f"❌ FlexiTask 启发式环境调度失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}, {}, {}
+    
+    def _run_smart_scheduling_with_metrics(self, virtual_work: VirtualWork) -> Tuple[Dict, Dict, Dict]:
+        """
+        使用 Smart 启发式算法进行调度，复用与 five_algorithms_with_balance_test 中一致的环境与指标计算逻辑。
+        """
+        print("🧠 开始 Smart 启发式环境调度...")
+        try:
+            # 复用与 PPO 相同的环境构造方式（使用外部 VirtualWork）
+            env_type = "NewHeuristic"
+            env = self._make_ppo_env_with_virtual_work(virtual_work, seed=42, env_type=env_type)
+            state = env.reset(external_virtual_work=virtual_work)
+
+            # 集成原始奖励计算器
+            self._integrate_original_reward_after_reset(env)
+
+            # 创建 Smart 启发式代理
+            smart_agent = create_heuristic_agent("smart")
+
+            # 直接复用测试脚本中的 run_heuristic_episode 逻辑
+            total_reward, success, episode_info = run_heuristic_episode(env, smart_agent)
+
+            L_val = episode_info.get('load_balance_degree', 0.0)
+            D_BW_val = episode_info.get('bandwidth_satisfaction', 0.0)
+            print(f"📊 Smart 启发式调度结果: 奖励={total_reward:.3f}, 成功={success}, 步数={episode_info['steps']}")
+            print(f"   L={L_val if isinstance(L_val, (int, float)) else 0.0:.4f}, D_BW={D_BW_val if isinstance(D_BW_val, (int, float)) else 0.0:.4f}")
+
+            allocation = self._extract_allocation_from_env(env, episode_info)
+            bandwidth_allocation = self._extract_bandwidth_allocation_from_env(env)
+
+            # 补充算法名称，便于上层日志打印
+            episode_info.setdefault('algorithm', 'Smart')
+
+            return allocation, episode_info, bandwidth_allocation
+        except Exception as e:
+            print(f"❌ Smart 启发式环境调度失败: {e}")
             import traceback
             traceback.print_exc()
             return {}, {}, {}
@@ -776,12 +817,50 @@ class PPOScheduler:
             import numpy as _np
 
             while not done and steps < max_steps:
-                # 映射阶段与带宽阶段的随机动作逻辑
+                # 映射阶段与带宽阶段的随机动作逻辑（带验证）
                 if state.get('mapping_phase', True):
-                    action = _np.random.randint(0, state.get('num_physical_nodes', env.num_physical_nodes if hasattr(env, 'num_physical_nodes') else 10))
+                    # 映射阶段：随机选择物理节点，但需要验证有效性
+                    num_physical_nodes = state.get('num_physical_nodes', env.num_physical_nodes if hasattr(env, 'num_physical_nodes') else 10)
+                    current_virtual_node = state.get('current_virtual_node', 0)
+                    
+                    # 生成所有候选动作并随机打乱
+                    candidates = list(range(num_physical_nodes))
+                    _np.random.shuffle(candidates)
+                    
+                    # 尝试找到有效动作
+                    action = None
+                    if hasattr(env, '_validate_mapping_action'):
+                        for candidate in candidates:
+                            is_valid, _ = env._validate_mapping_action(current_virtual_node, int(candidate))
+                            if is_valid:
+                                action = candidate
+                                break
+                    
+                    # 如果未找到有效动作或没有验证方法，使用随机值（环境会处理无效动作）
+                    if action is None:
+                        action = _np.random.randint(0, num_physical_nodes)
                 else:
+                    # 带宽阶段：随机选择带宽等级，但需要验证有效性
                     if hasattr(env, 'bandwidth_levels'):
-                        action = _np.random.randint(0, env.bandwidth_levels)
+                        bandwidth_levels = env.bandwidth_levels
+                        current_link_index = state.get('current_link_index', 0)
+                        
+                        # 生成所有候选动作并随机打乱
+                        candidates = list(range(bandwidth_levels))
+                        _np.random.shuffle(candidates)
+                        
+                        # 尝试找到有效动作
+                        action = None
+                        if hasattr(env, '_validate_bandwidth_action'):
+                            for candidate in candidates:
+                                is_valid, _ = env._validate_bandwidth_action(current_link_index, int(candidate))
+                                if is_valid:
+                                    action = candidate
+                                    break
+                        
+                        # 如果未找到有效动作或没有验证方法，使用随机值（环境会处理无效动作）
+                        if action is None:
+                            action = _np.random.randint(0, bandwidth_levels)
                     else:
                         action = 0
 
