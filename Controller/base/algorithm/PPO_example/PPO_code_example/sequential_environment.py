@@ -248,7 +248,7 @@ class SequentialNetworkSchedulerEnvironment:
         current_link_src = virtual_edges[0, self.current_link_index].item()
         current_link_dst = virtual_edges[1, self.current_link_index].item()
         
-        print(f"🔗 带宽步骤 {self.current_step}: 链路({current_link_src},{current_link_dst}) -> 等级{bandwidth_level_action}")
+        # print(f"🔗 带宽步骤 {self.current_step}: 链路({current_link_src},{current_link_dst}) -> 等级{bandwidth_level_action}")
         
         # 验证动作有效性
         is_valid, constraint_violations = self._validate_bandwidth_action(
@@ -263,7 +263,7 @@ class SequentialNetworkSchedulerEnvironment:
                 'current_link': (current_link_src, current_link_dst),
                 'action': bandwidth_level_action
             }
-            print(f"❌ 带宽动作无效: {constraint_violations}")
+            # print(f"❌ 带宽动作无效: {constraint_violations}")
         else:
             # 执行带宽分配
             self.partial_bandwidth[self.current_link_index] = bandwidth_level_action
@@ -291,7 +291,7 @@ class SequentialNetworkSchedulerEnvironment:
                 'partial_bandwidth': self.partial_bandwidth.copy(),
                 'bandwidth_reward': reward
             }
-            print(f"✅ 带宽分配成功，实际带宽: {actual_bandwidth}, 即时奖励: {reward:.3f}")
+            # print(f"✅ 带宽分配成功，实际带宽: {actual_bandwidth}, 即时奖励: {reward:.3f}")
         
         # 更新状态
         self.current_step += 1
@@ -315,7 +315,7 @@ class SequentialNetworkSchedulerEnvironment:
             if len(self.success_history) > self.history_window * 2:
                 self.success_history = self.success_history[-self.history_window:]
             
-            print(f"🏁 Episode {self.episode_count}结束，最终奖励: {final_reward:.3f}, 总奖励: {reward:.3f}, 成功: {episode_success}")
+            # print(f"🏁 Episode {self.episode_count}结束，最终奖励: {final_reward:.3f}, 总奖励: {reward:.3f}, 成功: {episode_success}")
         
         # 更新统计信息
         self.episode_stats['bandwidth_rewards'].append(reward)

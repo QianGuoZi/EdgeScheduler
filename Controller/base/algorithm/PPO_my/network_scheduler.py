@@ -264,39 +264,39 @@ class NetworkScheduler:
         # 获取最短路径
         path = self.topology.get_shortest_path(physical_from, physical_to)
         if not path:
-            print(f"❌ 路径不存在: 物理节点 {physical_from} -> {physical_to}")
+            # print(f"❌ 路径不存在: 物理节点 {physical_from} -> {physical_to}")
             return False
         
         # 检查带宽是否足够（考虑路径方向）
         # 在检查前，打印路径上每条链路的可用带宽
-        print(f"🔍 检查路径 {path} 的带宽可用性 (需求: {bandwidth}mbps):")
+        # print(f"🔍 检查路径 {path} 的带宽可用性 (需求: {bandwidth}mbps):")
         for i in range(len(path) - 1):
             u, v = path[i], path[i + 1]
             available = self.topology.get_available_bandwidth(u, v)
             link_info = self.topology.links.get((u, v), {})
             total_bw = link_info.get('bandwidth', 0)
             used_bw = link_info.get('used_bandwidth', 0)
-            print(f"  链路({u},{v}): 总={total_bw}mbps, 已用={used_bw}mbps, 可用={available}mbps")
+            # print(f"  链路({u},{v}): 总={total_bw}mbps, 已用={used_bw}mbps, 可用={available}mbps")
         
         if not self.topology.check_bandwidth_availability(path, bandwidth):
-            print(f"❌ 路径 {path} 带宽不足 (需求: {bandwidth}mbps)")
+            # print(f"❌ 路径 {path} 带宽不足 (需求: {bandwidth}mbps)")
             return False
         
         # 分配带宽
         success = self.topology.allocate_bandwidth(path, bandwidth)
         if not success:
-            print(f"❌ 警告：路径 {path} 上的带宽分配失败")
+            # print(f"❌ 警告：路径 {path} 上的带宽分配失败")
             return False
         
         # 分配成功后，打印更新后的带宽状态
-        print(f"✅ 带宽分配成功，路径 {path} 已分配 {bandwidth}mbps:")
+        # print(f"✅ 带宽分配成功，路径 {path} 已分配 {bandwidth}mbps:")
         for i in range(len(path) - 1):
             u, v = path[i], path[i + 1]
             available = self.topology.get_available_bandwidth(u, v)
             link_info = self.topology.links.get((u, v), {})
             total_bw = link_info.get('bandwidth', 0)
             used_bw = link_info.get('used_bandwidth', 0)
-            print(f"  链路({u},{v}): 总={total_bw}mbps, 已用={used_bw}mbps, 可用={available}mbps")
+            # print(f"  链路({u},{v}): 总={total_bw}mbps, 已用={used_bw}mbps, 可用={available}mbps")
         
         self.bandwidth_allocation[(virtual_from, virtual_to)] = bandwidth
         
@@ -320,12 +320,12 @@ class NetworkScheduler:
         if mapping_action is not None:
             # 使用提供的mapping_action
             if virtual_from >= len(mapping_action) or virtual_to >= len(mapping_action) or virtual_from < 0 or virtual_to < 0:
-                print(f"警告：虚拟节点 {virtual_from} 或 {virtual_to} 超出映射动作范围")
+                # print(f"警告：虚拟节点 {virtual_from} 或 {virtual_to} 超出映射动作范围")
                 return False
             
             # 检查虚拟节点是否已映射（映射值不为None）
             if mapping_action[virtual_from] is None or mapping_action[virtual_to] is None:
-                print(f"警告：虚拟节点 {virtual_from} 或 {virtual_to} 尚未映射")
+                # print(f"警告：虚拟节点 {virtual_from} 或 {virtual_to} 尚未映射")
                 return False
             
             physical_from = mapping_action[virtual_from]
@@ -333,7 +333,7 @@ class NetworkScheduler:
         else:
             # 使用原有的scheduled_nodes和node_mapping
             if virtual_from not in self.scheduled_nodes or virtual_to not in self.scheduled_nodes:
-                print(f"警告：虚拟节点 {virtual_from} 或 {virtual_to} 尚未调度")
+                # print(f"警告：虚拟节点 {virtual_from} 或 {virtual_to} 尚未调度")
                 return False
             
             physical_from = self.node_mapping[virtual_from]
@@ -341,21 +341,21 @@ class NetworkScheduler:
         
         # 如果映射到同一物理节点，带宽消耗为0，总是返回True
         if physical_from == physical_to:
-            print(f"虚拟节点 {virtual_from} 和 {virtual_to} 映射到同一物理节点 {physical_from}，带宽需求为0")
+            # print(f"虚拟节点 {virtual_from} 和 {virtual_to} 映射到同一物理节点 {physical_from}，带宽需求为0")
             return True
         
         # 获取最短路径
         path = self.topology.get_shortest_path(physical_from, physical_to)
         if not path:
-            print(f"警告：物理节点 {physical_from} 和 {physical_to} 之间无路径")
+            # print(f"警告：物理节点 {physical_from} 和 {physical_to} 之间无路径")
             return False
         
         # 检查路径上的带宽是否足够
         if not self.topology.check_bandwidth_availability(path, required_bandwidth):
-            print(f"警告：路径 {path} 上的可用带宽不足以支持需求带宽 {required_bandwidth}")
+            # print(f"警告：路径 {path} 上的可用带宽不足以支持需求带宽 {required_bandwidth}")
             return False
         
-        print(f"✅ 虚拟链路 ({virtual_from}, {virtual_to}) 的带宽需求 {required_bandwidth} 可以满足")
+        # print(f"✅ 虚拟链路 ({virtual_from}, {virtual_to}) 的带宽需求 {required_bandwidth} 可以满足")
         return True
     
     def _check_node_resources(self, virtual_node: int, physical_node: int) -> bool:
@@ -365,15 +365,15 @@ class NetworkScheduler:
             if virtual_node in virtual_work.node_requirements:
                 available = self.topology.get_available_resources(physical_node)
                 required = virtual_work.node_requirements[virtual_node]
-                print(f"检查节点资源是否足够 (从virtual_work):")
-                print(f"virtual_node: {virtual_node}, required: {required} ")
-                print(f"physical_node: {physical_node}, available: {available}")
+                # print(f"检查节点资源是否足够 (从virtual_work):")
+                # print(f"virtual_node: {virtual_node}, required: {required} ")
+                # print(f"physical_node: {physical_node}, available: {available}")
                 
                 return (available['cpu'] >= required['cpu'] and
                         available['memory'] >= required['memory'])
         
         # 如果都找不到，返回False
-        print(f"警告：找不到虚拟节点 {virtual_node} 的资源需求信息")
+        # print(f"警告：找不到虚拟节点 {virtual_node} 的资源需求信息")
         return False
     
     def _allocate_node_resources(self, virtual_node: int, physical_node: int) -> bool:
@@ -394,11 +394,11 @@ class NetworkScheduler:
                                                              required['cpu'], 
                                                              required['memory'])
                 if not success:
-                    print(f"警告：物理节点 {physical_node} 资源不足，无法分配虚拟节点 {virtual_node} 的资源需求")
+                    # print(f"警告：物理节点 {physical_node} 资源不足，无法分配虚拟节点 {virtual_node} 的资源需求")
                     return False
                 return True
         
-        print(f"警告：找不到虚拟节点 {virtual_node} 的资源需求信息，无法分配资源")
+        # print(f"警告：找不到虚拟节点 {virtual_node} 的资源需求信息，无法分配资源")
         return False
     
     def get_scheduling_result(self) -> Dict:

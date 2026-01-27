@@ -129,6 +129,8 @@ class OriginalRewardCalculator:
         计算带宽满足度 D_BW
         D_BW = (1/|V|) * Σ δ(v)
         
+        注意：对于双向链路，需要检查两个方向的带宽分配，并取平均值
+        
         Returns:
             (D_BW, individual_satisfactions): 总满足度和各链路满足度
         """
@@ -137,26 +139,51 @@ class OriginalRewardCalculator:
         for link_req in virtual_work.link_requirements:
             from_node = link_req['from']
             to_node = link_req['to']
-            min_bw = link_req['min_bandwidth_1_to_2']
-            max_bw = link_req['max_bandwidth_1_to_2']
             
-            # 获取实际分配的带宽
-            allocated_bw = scheduler.bandwidth_allocation.get((from_node, to_node), 0)
+            # 检查是否同节点映射（共置）
+            if (from_node in scheduler.node_mapping and to_node in scheduler.node_mapping):
+                physical_from = scheduler.node_mapping[from_node]
+                physical_to = scheduler.node_mapping[to_node]
+                if physical_from == physical_to:
+                    # 同一物理节点映射，给予最高满足度
+                    satisfactions.append(1.0)
+                    continue
             
-            # 计算满足度 δ(v)
-            if max_bw == min_bw:
-                # 如果最大最小相等，满足度为1（如果满足）或0（如果不满足）
-                delta_v = 1.0 if allocated_bw >= min_bw else 0.0
+            # 获取正向链路的带宽需求和分配
+            min_bw_1_to_2 = link_req['min_bandwidth_1_to_2']
+            max_bw_1_to_2 = link_req['max_bandwidth_1_to_2']
+            allocated_1_to_2 = scheduler.bandwidth_allocation.get((from_node, to_node), 0)
+            
+            # 获取反向链路的带宽需求和分配
+            min_bw_2_to_1 = link_req['min_bandwidth_2_to_1']
+            max_bw_2_to_1 = link_req['max_bandwidth_2_to_1']
+            allocated_2_to_1 = scheduler.bandwidth_allocation.get((to_node, from_node), 0)
+            
+            # 计算正向链路的满足度 δ(v_1_to_2)
+            if max_bw_1_to_2 == min_bw_1_to_2:
+                delta_1_to_2 = 1.0 if allocated_1_to_2 >= min_bw_1_to_2 else 0.0
             else:
-                # 否则，满足度是线性插值
-                if allocated_bw < min_bw:
-                    delta_v = 0.0
-                elif allocated_bw > max_bw:
-                    delta_v = 1.0
+                if allocated_1_to_2 < min_bw_1_to_2:
+                    delta_1_to_2 = 0.0
+                elif allocated_1_to_2 > max_bw_1_to_2:
+                    delta_1_to_2 = 1.0
                 else:
-                    delta_v = (allocated_bw - min_bw) / (max_bw - min_bw)
+                    delta_1_to_2 = (allocated_1_to_2 - min_bw_1_to_2) / (max_bw_1_to_2 - min_bw_1_to_2)
             
-            satisfactions.append(delta_v)
+            # 计算反向链路的满足度 δ(v_2_to_1)
+            if max_bw_2_to_1 == min_bw_2_to_1:
+                delta_2_to_1 = 1.0 if allocated_2_to_1 >= min_bw_2_to_1 else 0.0
+            else:
+                if allocated_2_to_1 < min_bw_2_to_1:
+                    delta_2_to_1 = 0.0
+                elif allocated_2_to_1 > max_bw_2_to_1:
+                    delta_2_to_1 = 1.0
+                else:
+                    delta_2_to_1 = (allocated_2_to_1 - min_bw_2_to_1) / (max_bw_2_to_1 - min_bw_2_to_1)
+            
+            # 取两个方向的平均满足度
+            avg_delta = (delta_1_to_2 + delta_2_to_1) / 2.0
+            satisfactions.append(avg_delta)
         
         # 平均满足度
         D_BW = np.mean(satisfactions) if satisfactions else 0.0

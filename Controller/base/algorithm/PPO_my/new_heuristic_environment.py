@@ -76,11 +76,11 @@ class NewHeuristicEnvironment(SequentialNetworkSchedulerEnvironment):
         self.load_balance_history = []
         self.resource_efficiency_history = []
         
-        print(f"🎯 轻量级启发式环境初始化完成")
-        print(f"   启发式奖励权重: {heuristic_reward_weight}")
-        print(f"   负载均衡奖励: {enable_load_balance_reward}")
-        print(f"   资源效率奖励: {enable_resource_efficiency_reward}")
-        print(f"   进度奖励: {enable_progress_reward}")
+        # print(f"🎯 轻量级启发式环境初始化完成")
+        # print(f"   启发式奖励权重: {heuristic_reward_weight}")
+        # print(f"   负载均衡奖励: {enable_load_balance_reward}")
+        # print(f"   资源效率奖励: {enable_resource_efficiency_reward}")
+        # print(f"   进度奖励: {enable_progress_reward}")
     
     def _get_state(self):
         """

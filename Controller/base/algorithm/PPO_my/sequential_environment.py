@@ -37,7 +37,7 @@ class SequentialNetworkSchedulerEnvironment:
         # 设置随机种子
         if seed is not None:
             self._set_random_seed(seed)
-            print(f"🌱 Sequential环境设置随机种子: {seed}")
+            # print(f"🌱 Sequential环境设置随机种子: {seed}")
         
         self.seed = seed
         
@@ -107,7 +107,7 @@ class SequentialNetworkSchedulerEnvironment:
         import random
         random.seed(seed)
         np.random.seed(seed)
-        print(f"🔒 Sequential环境随机种子设置完成: {seed}")
+        # print(f"🔒 Sequential环境随机种子设置完成: {seed}")
     
     def _convert_virtual_work_to_dict(self, virtual_work: VirtualWork) -> Dict:
         """
@@ -184,14 +184,14 @@ class SequentialNetworkSchedulerEnvironment:
             max_bandwidth_1_to_2 = link_req['max_bandwidth_1_to_2']
             virtual_edges.append([from_node, to_node])
             virtual_edge_features.append([min_bandwidth_1_to_2, max_bandwidth_1_to_2])
-            print(f"[VirtualWork转换] 边 {from_node}->{to_node}: 范围[{min_bandwidth_1_to_2}-{max_bandwidth_1_to_2}] mbps")
+            # print(f"[VirtualWork转换] 边 {from_node}->{to_node}: 范围[{min_bandwidth_1_to_2}-{max_bandwidth_1_to_2}] mbps")
 
             # 方向2: to_node -> from_node，使用2_to_1的带宽范围
             min_bandwidth_2_to_1 = link_req['min_bandwidth_2_to_1']
             max_bandwidth_2_to_1 = link_req['max_bandwidth_2_to_1']
             virtual_edges.append([to_node, from_node])
             virtual_edge_features.append([min_bandwidth_2_to_1, max_bandwidth_2_to_1])
-            print(f"[VirtualWork转换] 边 {to_node}->{from_node}: 范围[{min_bandwidth_2_to_1}-{max_bandwidth_2_to_1}] mbps")
+            # print(f"[VirtualWork转换] 边 {to_node}->{from_node}: 范围[{min_bandwidth_2_to_1}-{max_bandwidth_2_to_1}] mbps")
         
         # 转换为tensor
         virtual_edges_tensor = torch.tensor(virtual_edges, dtype=torch.long).t() if virtual_edges else torch.empty((2, 0), dtype=torch.long)
@@ -235,7 +235,7 @@ class SequentialNetworkSchedulerEnvironment:
                 self.virtual_work = self._convert_virtual_work_to_dict(self.external_virtual_work)
             else:
                 # 如果没有外部VirtualWork，回退到随机生成
-                print("⚠️  调度模式但未提供VirtualWork，回退到随机生成")
+                # print("⚠️  调度模式但未提供VirtualWork，回退到随机生成")
                 self.virtual_work = self._generate_virtual_work()
         else:
             # 训练模式：随机生成VirtualWork
@@ -264,11 +264,11 @@ class SequentialNetworkSchedulerEnvironment:
             'constraint_violations': []
         }
         
-        print(f"🔄 Sequential环境重置完成:")
-        print(f"   虚拟节点数: {num_virtual_nodes}")
-        print(f"   虚拟链路数: {num_virtual_links}")
-        print(f"   物理节点数: {self.num_physical_nodes}")
-        print(f"   预计总步数: {num_virtual_nodes + num_virtual_links}")
+        # print(f"🔄 Sequential环境重置完成:")
+        # print(f"   虚拟节点数: {num_virtual_nodes}")
+        # print(f"   虚拟链路数: {num_virtual_links}")
+        # print(f"   物理节点数: {self.num_physical_nodes}")
+        # print(f"   预计总步数: {num_virtual_nodes + num_virtual_links}")
         
         return self._get_state()
     
@@ -281,7 +281,7 @@ class SequentialNetworkSchedulerEnvironment:
     
     def _step_mapping(self, physical_node_action):
         """执行节点映射步骤"""
-        print(f"📍 映射步骤 {self.current_step}: 虚拟节点{self.current_virtual_node} -> 物理节点{physical_node_action}")
+        # print(f"📍 映射步骤 {self.current_step}: 虚拟节点{self.current_virtual_node} -> 物理节点{physical_node_action}")
         
         # 验证动作有效性
         is_valid, constraint_violations = self._validate_mapping_action(
@@ -297,7 +297,7 @@ class SequentialNetworkSchedulerEnvironment:
                 'current_virtual_node': self.current_virtual_node,
                 'action': physical_node_action
             }
-            print(f"❌ 映射动作无效: {constraint_violations}")
+            # print(f"❌ 映射动作无效: {constraint_violations}")
         else:
             # 执行映射
             self.partial_mapping[self.current_virtual_node] = physical_node_action
@@ -319,7 +319,7 @@ class SequentialNetworkSchedulerEnvironment:
                 'partial_mapping': self.partial_mapping.copy(),
                 'mapping_reward': reward
             }
-            print(f"✅ 映射成功，即时奖励: {reward:.3f}")
+            # print(f"✅ 映射成功，即时奖励: {reward:.3f}")
         
         # 更新状态
         self.current_step += 1
@@ -336,7 +336,7 @@ class SequentialNetworkSchedulerEnvironment:
             else:
                 self.mapping_phase = False
                 self.current_link_index = 0
-                print(f"🎯 节点映射阶段完成，进入带宽分配阶段")
+                # print(f"🎯 节点映射阶段完成，进入带宽分配阶段")
         
         # 检查episode是否结束
         done = self._check_episode_done()
@@ -356,7 +356,7 @@ class SequentialNetworkSchedulerEnvironment:
             if len(self.success_history) > self.history_window * 2:
                 self.success_history = self.success_history[-self.history_window:]
             
-            print(f"🏁 Episode {self.episode_count}结束（映射阶段），最终奖励: {final_reward:.3f}, 总奖励: {reward:.3f}, 成功: {episode_success}")
+            # print(f"🏁 Episode {self.episode_count}结束（映射阶段），最终奖励: {final_reward:.3f}, 总奖励: {reward:.3f}, 成功: {episode_success}")
         
         # 更新统计信息
         self.episode_stats['mapping_rewards'].append(reward)
@@ -370,7 +370,7 @@ class SequentialNetworkSchedulerEnvironment:
         current_link_src = virtual_edges[0, self.current_link_index].item()
         current_link_dst = virtual_edges[1, self.current_link_index].item()
         
-        print(f"🔗 带宽步骤 {self.current_step}: 链路({current_link_src},{current_link_dst}) -> 等级{bandwidth_level_action}")
+        # print(f"🔗 带宽步骤 {self.current_step}: 链路({current_link_src},{current_link_dst}) -> 等级{bandwidth_level_action}")
         
         # 验证动作有效性
         is_valid, constraint_violations = self._validate_bandwidth_action(
@@ -385,7 +385,7 @@ class SequentialNetworkSchedulerEnvironment:
                 'current_link': (current_link_src, current_link_dst),
                 'action': bandwidth_level_action
             }
-            print(f"❌ 带宽动作无效: {constraint_violations}")
+            # print(f"❌ 带宽动作无效: {constraint_violations}")
         else:
             # 执行带宽分配
             self.partial_bandwidth[self.current_link_index] = bandwidth_level_action
@@ -410,7 +410,7 @@ class SequentialNetworkSchedulerEnvironment:
                 'partial_bandwidth': self.partial_bandwidth.copy(),
                 'bandwidth_reward': reward
             }
-            print(f"✅ 带宽分配成功，实际带宽: {actual_bandwidth}, 即时奖励: {reward:.3f}")
+            # print(f"✅ 带宽分配成功，实际带宽: {actual_bandwidth}, 即时奖励: {reward:.3f}")
         
         # 更新状态
         self.current_step += 1
@@ -434,7 +434,7 @@ class SequentialNetworkSchedulerEnvironment:
             if len(self.success_history) > self.history_window * 2:
                 self.success_history = self.success_history[-self.history_window:]
             
-            print(f"🏁 Episode {self.episode_count}结束，最终奖励: {final_reward:.3f}, 总奖励: {reward:.3f}, 成功: {episode_success}")
+            # print(f"🏁 Episode {self.episode_count}结束，最终奖励: {final_reward:.3f}, 总奖励: {reward:.3f}, 成功: {episode_success}")
         
         # 更新统计信息
         self.episode_stats['bandwidth_rewards'].append(reward)
@@ -493,7 +493,7 @@ class SequentialNetworkSchedulerEnvironment:
             base_satisfaction = 1.5  # 完全满足需求
             
             total_reward = base_satisfaction
-            print(f"🎉 同节点映射奖励: {total_reward:.3f}")
+            # print(f"🎉 同节点映射奖励: {total_reward:.3f}")
             return total_reward
         else:
             # 正常分配逻辑
@@ -519,16 +519,16 @@ class SequentialNetworkSchedulerEnvironment:
             # 使用新的简化奖励函数
             if hasattr(self.network_scheduler, 'calculate_simple_reward'):
                 final_reward = self.network_scheduler.calculate_simple_reward(self.virtual_work_obj)
-                print(f"🎯 使用简化奖励函数: {final_reward:.3f}")
+                # print(f"🎯 使用简化奖励函数: {final_reward:.3f}")
                 
                 # 获取增强奖励组件用于调试
                 if hasattr(self.network_scheduler, 'get_simple_reward_components'):
                     components = self.network_scheduler.get_simple_reward_components(self.virtual_work_obj)
-                    print(f"   映射成功率: {components.get('mapping_success_rate', 0):.3f}")
-                    print(f"   负载均衡: {components.get('load_balance_reward', 0):.3f}")
-                    print(f"   资源效率: {components.get('resource_efficiency', 0):.3f}")
-                    print(f"   带宽满足度: {components.get('bandwidth_satisfaction', 0):.3f}")
-                    print(f"   路径优化: {components.get('path_length_penalty', 0):.3f}")
+                    # print(f"   映射成功率: {components.get('mapping_success_rate', 0):.3f}")
+                    # print(f"   负载均衡: {components.get('load_balance_reward', 0):.3f}")
+                    # print(f"   资源效率: {components.get('resource_efficiency', 0):.3f}")
+                    # print(f"   带宽满足度: {components.get('bandwidth_satisfaction', 0):.3f}")
+                    # print(f"   路径优化: {components.get('path_length_penalty', 0):.3f}")
                 
                 return final_reward
             else:
@@ -537,10 +537,10 @@ class SequentialNetworkSchedulerEnvironment:
                 load_balance = components.get('load_balance', 0.0)
                 bandwidth_satisfaction = components.get('bandwidth_satisfaction', 0.0)
                 final_reward = 0.5 * (load_balance + bandwidth_satisfaction)
-                print(f"🔙 使用旧奖励函数: {final_reward:.3f}")
+                # print(f"🔙 使用旧奖励函数: {final_reward:.3f}")
                 return final_reward
         except Exception as e:
-            print(f"⚠️ 计算最终奖励失败: {e}")
+            # print(f"⚠️ 计算最终奖励失败: {e}")
             return 0.0
     
     def _check_episode_done(self):
@@ -647,11 +647,11 @@ class SequentialNetworkSchedulerEnvironment:
         if recent_success_rate > 0.85:  # 太简单，增加难度
             self.difficulty_level = min(self.max_difficulty, 
                                        self.difficulty_level + self.difficulty_adjustment_rate)
-            print(f"📈 难度调整: {self.difficulty_level:.2f} (成功率: {recent_success_rate:.2%})")
+            # print(f"📈 难度调整: {self.difficulty_level:.2f} (成功率: {recent_success_rate:.2%})")
         elif recent_success_rate < 0.4:  # 太难，降低难度
             self.difficulty_level = max(self.min_difficulty, 
                                        self.difficulty_level - self.difficulty_adjustment_rate)
-            print(f"📉 难度调整: {self.difficulty_level:.2f} (成功率: {recent_success_rate:.2%})")
+            # print(f"📉 难度调整: {self.difficulty_level:.2f} (成功率: {recent_success_rate:.2%})")
     
     def _generate_virtual_work(self):
         """生成随机虚拟工作需求（带难度调整）"""

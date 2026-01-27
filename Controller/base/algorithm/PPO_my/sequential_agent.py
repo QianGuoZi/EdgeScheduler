@@ -79,12 +79,12 @@ class SimpleSequentialAgent(nn.Module):
         # 移动到设备
         self.to(self.device)
         
-        print(f"✅ SimpleSequentialAgent初始化完成")
-        print(f"   设备: {self.device}")
-        print(f"   状态维度: {self._calculate_state_dim()}")
-        print(f"   隐藏维度: {hidden_dim}")
-        print(f"   最大物理节点数: {max_physical_nodes}")
-        print(f"   带宽等级数: {bandwidth_levels}")
+        # print(f"✅ SimpleSequentialAgent初始化完成")
+        # print(f"   设备: {self.device}")
+        # print(f"   状态维度: {self._calculate_state_dim()}")
+        # print(f"   隐藏维度: {hidden_dim}")
+        # print(f"   最大物理节点数: {max_physical_nodes}")
+        # print(f"   带宽等级数: {bandwidth_levels}")
     
     def _calculate_state_dim(self):
         """计算状态向量的维度"""
@@ -141,7 +141,7 @@ class SimpleSequentialAgent(nn.Module):
         features.append(virtual_padded.flatten())  # [max_virtual_nodes * 3]
         
         # 3. 决策状态特征
-        decision_features = torch.zeros(10, device=physical_features.device)  # 增加到10个特征
+        decision_features = torch.zeros(10, device=physical_features.device)  # 10个特征
         decision_features[0] = state.get('current_step', 0) / 10.0  # 归一化步数
         decision_features[1] = 1.0 if state.get('mapping_phase', True) else 0.0  # 当前阶段
         decision_features[2] = state.get('current_virtual_node', 0) / self.max_virtual_nodes  # 当前虚拟节点
@@ -154,6 +154,15 @@ class SimpleSequentialAgent(nn.Module):
         if partial_mapping:
             mapped_count = sum(1 for x in partial_mapping if x != -1)
             decision_features[6] = mapped_count / len(partial_mapping)  # 映射完成度
+        
+        # 多任务信息（在多作业环境中由 state 提供；单作业环境下默认为0）
+        # 这里等价于在原单任务决策状态基础上额外增加3个标量信息：
+        # - multi_queue_len_norm: 队列长度（归一化）
+        # - multi_completed_norm: 已完成任务数（归一化）
+        # - multi_has_current_task: 是否有任务在处理（0/1）
+        decision_features[7] = state.get('multi_queue_len_norm', 0.0)
+        decision_features[8] = state.get('multi_completed_norm', 0.0)
+        decision_features[9] = state.get('multi_has_current_task', 0.0)
         
         features.append(decision_features)
         
