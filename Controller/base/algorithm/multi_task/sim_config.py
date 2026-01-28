@@ -31,27 +31,27 @@ JOB_GEN = {
     'TASK_RANGE': (3, 8),     # 作业内部任务（虚拟节点）数量范围
     'PRIORITY_RANGE': (1, 5), # 作业优先级整数范围（较小或较大含义由调度器实现决定）
     # 运行时长范围：用于生成作业的 `run_time`（资源占用时间，单位与仿真时间一致）
-    'RUN_TIME_RANGE': (30.0, 50.0),
+    'RUN_TIME_RANGE': (50.0, 100.0),
 }
 
 # 仿真运行参数
 SIM = {
     'DT': 1.0,    # 时间步长（仿真时间的最小推进单位）
-    'T_MAX': 300.0, # 单次仿真最大时间（仿真在达到该时间后停止）
+    'T_MAX': 400.0, # 单次仿真最大时间（仿真在达到该时间后停止）
 }
 
 # 试验控制
-RUNS_PER_SCHEDULER = 1   # 每个调度器重复运行的次数（用于统计均值与方差）
+RUNS_PER_SCHEDULER = 5   # 每个调度器重复运行的次数（用于统计均值与方差）
 RESULTS_DIR = 'results'   # 存放仿真输出（history CSV、图像、summary 等）的目录
 
-# 选择要运行的调度器（按名称）。可选值: 'ces', 'fifo', 'sjf', 'priority', 'random'
-SCHEDULER_NAMES = ['ces', 'fifo', 'sjf', 'priority', 'random']
+# 选择要运行的调度器（按名称）。可选值: 'ces', 'fifo', 'sjf', 'priority', 'swts'
+# 将 SWTS 算法加入可选调度器列表以便进行对比实验
+SCHEDULER_NAMES = ['ces','swts', 'fifo', 'sjf', 'AdaEvo']
 # 可用调度器说明：
 #  - 'ces'：基于综合评估分数的调度器（需 CES_PARAMS 支持）
 #  - 'fifo'：先进先出
 #  - 'sjf'：短作业优先（Shortest Job First）
 #  - 'priority'：按作业优先级
-#  - 'random'：随机选择
 
 # CES 调度器参数（若启用 'ces'）
 CES_PARAMS = {
@@ -69,4 +69,12 @@ LOAD_BALANCE_WEIGHTS = {
     'w2_ram': 0.4,
     # w3_bw: 带宽负载平衡权重
     'w3_bw': 0.2,
+}
+
+# AdaEvo 算法参数：可在这里调整 tau（等待时间刻度）和分组数 K
+ADAEVO_PARAMS = {
+    # TAU: 用于计算紧急程度中的等待时间归一化因子（默认与文档中的建议值相近）
+    'TAU': 50.0,
+    # K: 将等待队列划分为 K 组用于分组调度
+    'K': 3,
 }

@@ -32,6 +32,8 @@ make_fifo_scheduler = alg_mod.make_fifo_scheduler
 make_sjf_scheduler = alg_mod.make_sjf_scheduler
 make_random_scheduler = alg_mod.make_random_scheduler
 make_priority_scheduler = alg_mod.make_priority_scheduler
+make_swts_scheduler = alg_mod.make_swts_scheduler
+make_adaevo_scheduler = getattr(alg_mod, 'make_adaevo_scheduler', None)
 
 
 def build_random_network(num_nodes=None, conn_prob=None, cpu_range=None, ram_range=None, bw_range=None):
@@ -125,7 +127,8 @@ def main():
         for run_idx in range(runs_per_scheduler):
             # 为当前运行构建全新的物理网络和调度器
             net = build_random_network(num_nodes=sim_config.NETWORK['NUM_NODES'], conn_prob=sim_config.NETWORK['CONN_PROB'])
-            if name == 'ces':
+            name_lower = str(name).lower()
+            if name_lower == 'ces':
                 scheduler = make_ces_scheduler(net, max_load_factor=sim_config.CES_PARAMS['MAX_LOAD_FACTOR'], theta=sim_config.CES_PARAMS.get('THETA', 5.0))
             elif name == 'fifo':
                 scheduler = make_fifo_scheduler()
@@ -133,8 +136,16 @@ def main():
                 scheduler = make_sjf_scheduler()
             elif name == 'priority':
                 scheduler = make_priority_scheduler()
+            elif name == 'swts':
+                # SWTS 风格调度器需要网络引用以评估节点异构性
+                scheduler = make_swts_scheduler(net)
             elif name == 'random':
                 scheduler = make_random_scheduler()
+            elif name_lower == 'adaevo' and make_adaevo_scheduler is not None:
+                ada_params = getattr(sim_config, 'ADAEVO_PARAMS', {})
+                tau = ada_params.get('TAU', 50.0)
+                K = ada_params.get('K', 3)
+                scheduler = make_adaevo_scheduler(net, tau=tau, K=K)
             else:
                 # 未知调度器名，跳过
                 continue
