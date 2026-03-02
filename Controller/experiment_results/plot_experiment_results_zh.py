@@ -2,12 +2,52 @@ import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 import pandas as pd
 
 
 TASK_TYPES = ["ra", "el", "gl"]
 METHODS = ["ppo", "ppo_balance", "heuristic", "smart", "random"]
 METRICS = ["load_balance_degree", "bandwidth_satisfaction", "composite_score"]
+
+
+def configure_chinese_font(font_path: str = None):
+    simsun_path = '/usr/share/fonts/myfonts/simsun.ttc'
+    times_path = '/usr/share/fonts/myfonts/times.ttf'
+
+    # 将字体文件添加到 matplotlib 的字体管理器（确保被识别）
+    for path in [simsun_path, times_path]:
+        if os.path.exists(path):
+            fm.fontManager.addfont(path)
+
+    # 获取字体名称
+    simsun_prop = fm.FontProperties(fname=simsun_path)
+    simsun_name = simsun_prop.get_name()
+    times_prop = fm.FontProperties(fname=times_path)
+    times_name = times_prop.get_name()
+
+    # 直接设置字体搜索顺序：先 Times New Roman，再 SimSun
+    plt.rcParams['font.family'] = [times_name, simsun_name]
+    plt.rcParams['axes.unicode_minus'] = False
+
+    print(f'英文主字体: {times_name}')
+    print(f'中文主字体: {simsun_name}')
+    print(f'字体顺序: {plt.rcParams["font.family"]}')
+
+
+def configure_plot_sizes(base_font_size: int = 14):
+    title_size = base_font_size + 2
+    label_size = base_font_size
+    tick_size = max(base_font_size - 1, 10)
+    legend_size = max(base_font_size - 1, 10)
+
+    plt.rcParams['font.size'] = base_font_size
+    plt.rcParams['axes.titlesize'] = title_size
+    plt.rcParams['axes.labelsize'] = label_size
+    plt.rcParams['xtick.labelsize'] = tick_size
+    plt.rcParams['ytick.labelsize'] = tick_size
+    plt.rcParams['legend.fontsize'] = legend_size
+
 
 
 def find_latest_csv(base_dir, task, method):
@@ -19,24 +59,18 @@ def find_latest_csv(base_dir, task, method):
     if not task_dir.is_dir():
         return None
 
-    # 目录名一般是 like: method_20260113_1620
-    # 注意：要严格匹配目录名以 method + "_" 开头，
-    # 避免 "ppo" 错误匹配到 "ppo_balance_..." 这种目录。
     candidates = []
     method_prefix = method + "_"
     for d in task_dir.iterdir():
         if not d.is_dir():
             continue
-        # 检查目录名是否以 method + "_" 开头
         if d.name.startswith(method_prefix):
-            # 特殊处理：如果 method 是 "ppo"，要排除 "ppo_balance_" 开头的目录
             if method == "ppo" and d.name.startswith("ppo_balance_"):
                 continue
             candidates.append(d)
     if not candidates:
         return None
 
-    # 取按目录名排序后的最后一个，认为是最新一次实验
     latest_dir = sorted(candidates)[-1]
     csv_path = latest_dir / "experiment_results.csv"
     return csv_path if csv_path.is_file() else None
@@ -44,7 +78,7 @@ def find_latest_csv(base_dir, task, method):
 
 def collect_means(base_dir: Path):
     """
-    收集每个 task、每个 method 在三种指标上的 5 次实验均值。
+    收集每个 task、每个 method 在三种指标上的实验均值。
     返回结构: metrics_means[metric][method][task] = mean_value
     """
     metrics_means: dict[str, dict[str, dict[str, float]]] = {
@@ -55,18 +89,16 @@ def collect_means(base_dir: Path):
         for method in METHODS:
             csv_path = find_latest_csv(base_dir, task, method)
             if csv_path is None:
-                print(f"[WARN] 找不到 CSV: task={task}, method={method}")
+                print(f"[警告] 找不到 CSV: task={task}, method={method}")
                 for metric in METRICS:
                     metrics_means[metric][method][task] = float("nan")
                 continue
 
-            # 调试打印：确认每个方法在每个 task 下具体使用了哪个 CSV
             if method in ("ppo", "ppo_balance"):
-                print(f"[INFO] 使用 CSV: task={task}, method={method}, path={csv_path}")
+                print(f"[信息] 使用 CSV: task={task}, method={method}, path={csv_path}")
 
             df = pd.read_csv(csv_path)
 
-            # 只统计 status == success 的记录（如果有该列）
             if "status" in df.columns:
                 df = df[df["status"] == "success"]
 
@@ -74,7 +106,7 @@ def collect_means(base_dir: Path):
                 if metric in df.columns:
                     metrics_means[metric][method][task] = df[metric].mean()
                 else:
-                    print(f"[WARN] {csv_path} 中没有指标列: {metric}")
+                    print(f"[警告] {csv_path} 中没有指标列: {metric}")
                     metrics_means[metric][method][task] = float("nan")
 
     return metrics_means
@@ -103,9 +135,9 @@ def print_method_means(metrics_means, methods=None):
 def plot_results(metrics_means, save_path=None):
     """
     画出三个子图：
-    - load_balance_degree
-    - bandwidth_satisfaction
-    - composite_score
+    - 负载均衡度
+    - 带宽满足度
+    - 综合指标
 
     横坐标: ra / el / gl
     纵坐标: 指标均值
@@ -114,37 +146,37 @@ def plot_results(metrics_means, save_path=None):
     x_labels = TASK_TYPES
     x = range(len(x_labels))
 
-    plt.figure(figsize=(12, 4))
+    fig = plt.figure(figsize=(12, 4))
+    legend_handles = None
+    legend_labels = None
 
     titles = {
-        "load_balance_degree": "Load Balance (L)",
-        "bandwidth_satisfaction": "Bandwidth Satisfaction (D_BW)",
-        "composite_score": "Composite Metric (0.5*(1-L)+0.5*D_BW)",
+        "load_balance_degree": "负载均衡度（L）",
+        "bandwidth_satisfaction": "带宽满足度（D_BW）",
+        "composite_score": "综合指标（0.5*(1-L)+0.5*D_BW）",
     }
 
     ylabels = {
         "load_balance_degree": "L",
         "bandwidth_satisfaction": "D_BW",
-        "composite_score": "Composite",
+        "composite_score": "综合得分",
     }
 
-    # Align plotting style with plot_five scripts: explicit colors, markers and display names
-    colors = ['#2E86AB', '#A23B72', '#F18F01', '#16A085', '#7B2CBF']  # PPO, PPO_balance, heuristic, smart, random
+    colors = ["#2E86AB", "#A23B72", "#F18F01", "#16A085", "#7B2CBF"]
     display_names = {
-        'ppo': 'CES_PPO',
-        'ppo_balance': 'Balance_PPO',
-        'heuristic': 'FlexiTask',
-        'smart': 'Smart',
-        'random': 'Random'
+        "ppo": "CES_PPO",
+        "ppo_balance": "PPO_Balance",
+        "heuristic": "FlexiTask",
+        "smart": "Smart",
+        "random": "Random",
     }
 
-    # Use the same marker shape as plot_five (all circles)
     styles = {
-        'ppo': {'marker': 'o', 'color': colors[0]},
-        'ppo_balance': {'marker': 'o', 'color': colors[1], 'linewidth': 1.0},
-        'heuristic': {'marker': 'o', 'color': colors[2]},
-        'smart': {'marker': 'o', 'color': colors[3]},
-        'random': {'marker': 'o', 'color': colors[4]},
+        "ppo": {"marker": "o", "color": colors[0]},
+        "ppo_balance": {"marker": "o", "color": colors[1], "linewidth": 1.0},
+        "heuristic": {"marker": "o", "color": colors[2]},
+        "smart": {"marker": "o", "color": colors[3]},
+        "random": {"marker": "o", "color": colors[4]},
     }
 
     for idx, metric in enumerate(METRICS, start=1):
@@ -160,14 +192,24 @@ def plot_results(metrics_means, save_path=None):
             )
 
         plt.xticks(x, x_labels)
-        plt.xlabel("Task Type")
+        plt.xlabel("任务类型")
         plt.ylabel(ylabels.get(metric, metric))
         plt.title(titles.get(metric, metric))
         plt.grid(True, linestyle="--", alpha=0.4)
         if idx == 1:
-            plt.legend()
+            legend_handles, legend_labels = plt.gca().get_legend_handles_labels()
 
-    plt.tight_layout()
+    if legend_handles and legend_labels:
+        fig.legend(
+            legend_handles,
+            legend_labels,
+            loc="lower center",
+            ncol=len(legend_labels),
+            frameon=False,
+            bbox_to_anchor=(0.5, 0.01),
+        )
+
+    plt.tight_layout(rect=[0, 0.10, 1, 1])
 
     if save_path is not None:
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
@@ -176,18 +218,24 @@ def plot_results(metrics_means, save_path=None):
         plt.show()
 
 
-def main():
+def main(font_path: str = None, font_size: int = 22):
+    configure_chinese_font(font_path)
+    configure_plot_sizes(base_font_size=font_size)
     base_dir = Path(__file__).resolve().parent
     metrics_means = collect_means(base_dir)
 
-    # 打印 ppo 和 ppo_balance 的均值，便于检查
     print_method_means(metrics_means, methods=["ppo", "ppo_balance"])
 
-    # 默认保存为当前目录下的 PNG，也可以改成直接 show()
-    output_path = base_dir / "experiment_results_plot.png"
+    output_path = base_dir / "experiment_results_plot_zh.png"
     plot_results(metrics_means, save_path=output_path)
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
 
+    parser = argparse.ArgumentParser(description="实验结果绘图（中文）")
+    parser.add_argument("--font-path", default=None, help="可选：手动指定中文字体文件路径（.ttf/.ttc）")
+    parser.add_argument("--font-size", type=int, default=14, help="基础字体大小（标题会在此基础上略大）")
+    args = parser.parse_args()
+
+    main(font_path=args.font_path, font_size=args.font_size)

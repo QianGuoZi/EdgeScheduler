@@ -2,10 +2,49 @@ import csv
 import glob
 import os
 from pathlib import Path
-import math
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 import numpy as np
 import argparse
+
+
+def configure_chinese_font():
+    simsun_path = '/usr/share/fonts/myfonts/simsun.ttc'
+    times_path = '/usr/share/fonts/myfonts/times.ttf'
+
+    # 将字体文件添加到 matplotlib 的字体管理器（确保被识别）
+    for path in [simsun_path, times_path]:
+        if os.path.exists(path):
+            fm.fontManager.addfont(path)
+
+    # 获取字体名称
+    simsun_prop = fm.FontProperties(fname=simsun_path)
+    simsun_name = simsun_prop.get_name()
+    times_prop = fm.FontProperties(fname=times_path)
+    times_name = times_prop.get_name()
+
+    # 直接设置字体搜索顺序：先 Times New Roman，再 SimSun
+    plt.rcParams['font.family'] = [times_name, simsun_name]
+    plt.rcParams['axes.unicode_minus'] = False
+
+    print(f'英文主字体: {times_name}')
+    print(f'中文主字体: {simsun_name}')
+    print(f'字体顺序: {plt.rcParams["font.family"]}')
+
+
+def configure_plot_sizes(base_font_size: int = 20):
+    """统一设置图中文字大小。"""
+    title_size = base_font_size + 2
+    label_size = base_font_size
+    tick_size = max(base_font_size - 1, 10)
+    legend_size = max(base_font_size - 1, 10)
+
+    plt.rcParams['font.size'] = base_font_size
+    plt.rcParams['axes.titlesize'] = title_size
+    plt.rcParams['axes.labelsize'] = label_size
+    plt.rcParams['xtick.labelsize'] = tick_size
+    plt.rcParams['ytick.labelsize'] = tick_size
+    plt.rcParams['legend.fontsize'] = legend_size
 
 
 def load_history_csv(path):
@@ -31,7 +70,7 @@ def smooth(x, window_len: int = 5):
     n = len(x)
     if n < window_len or n == 0:
         return x
-    # 将输入转为浮点数组，并用线性插值填补 NaN（若存在）
+
     x = x.astype(float)
     if np.isnan(x).all():
         return x
@@ -40,11 +79,9 @@ def smooth(x, window_len: int = 5):
         valid = ~np.isnan(x)
         x[np.isnan(x)] = np.interp(idx[np.isnan(x)], idx[valid], x[valid])
 
-    # 使用 edge 填充边界以避免卷积时的零填充伪影
     pad = max(0, int(window_len) // 2)
     padded = np.pad(x, pad_width=pad, mode='edge')
     window = np.ones(window_len) / window_len
-    # 'valid' 在 padded 上产生与原序列等长的结果
     y = np.convolve(padded, window, mode='valid')
     return y
 
@@ -79,7 +116,7 @@ def _order_scheds(scheds, label_map=None):
     return ordered
 
 
-def plot_line_avg_wait(results_dir, out='results/avg_wait_line.png', window_len: int = 5, label_map=None, colors=None):
+def plot_line_avg_wait(results_dir, out='results/avg_wait_line_zh.png', window_len: int = 5, label_map=None, colors=None):
     files = glob.glob(os.path.join(results_dir, '*_run*.csv'))
     sched_runs = {}
     for f in files:
@@ -94,11 +131,9 @@ def plot_line_avg_wait(results_dir, out='results/avg_wait_line.png', window_len:
     ordered_scheds = _order_scheds(sched_runs.keys(), label_map=label_map)
     for i, sched in enumerate(ordered_scheds):
         runs = sched_runs[sched]
-        # align by integer times up to max
         max_t = int(max(times.max() for times, _ in runs))
         arr = []
         for times, waits in runs:
-            # create vector length max_t+1
             vec = np.zeros(max_t + 1)
             for t, w in zip(times.astype(int), waits):
                 if t <= max_t:
@@ -107,26 +142,19 @@ def plot_line_avg_wait(results_dir, out='results/avg_wait_line.png', window_len:
         mean = np.mean(arr, axis=0)
         label = label_map.get(sched, sched) if isinstance(label_map, dict) else sched
         plt.plot(smooth(mean, window_len=window_len), label=label, color=colors[i % len(colors)])
-    plt.xlabel('Time')
-    plt.ylabel('Avg waiting')
+    plt.xlabel('时间')
+    plt.ylabel('平均等待时间')
     plt.legend()
-    plt.title('Average Waiting Over Time (mean across runs)')
+    plt.title('平均等待时间随时间变化')
     os.makedirs(os.path.dirname(out), exist_ok=True)
     plt.savefig(out)
     plt.close()
 
+
 def plot_weighted_performance(results_dir, out_dir=None, window_len: int = 5, weights=None, label_map=None, colors=None):
-    """绘制加权综合性能曲线：对三个指标按时间点在调度器间归一化后按权重合成。
-
-    组合项（越大越好）:
-      - avg_bw_satisfaction (higher is better)
-      - load_balance (lower is better -> invert)
-      - avg_waiting (lower is better -> invert)
-
-    weights: dict 或 None，格式 {'bw':0.5,'load':0.3,'wait':0.2}
-    """
+    """绘制加权综合性能曲线：对三个指标按时间点在调度器间归一化后按权重合成。"""
     if out_dir is None:
-        out_dir = os.path.join(results_dir, 'metrics')
+        out_dir = os.path.join(results_dir, '指标图')
     os.makedirs(out_dir, exist_ok=True)
 
     if weights is None:
@@ -141,15 +169,14 @@ def plot_weighted_performance(results_dir, out_dir=None, window_len: int = 5, we
         sched_runs.setdefault(sched, []).append((times, waits, bw_sats, lbs))
 
     if not sched_runs:
-        print('No run CSV files found in', results_dir)
+        print('未在目录中找到运行结果 CSV 文件：', results_dir)
         return
 
-    # 计算每个 scheduler 在每个时间点的平均值向量
     sched_metrics = {}
     max_t = 0
     for sched, runs in sched_runs.items():
         if runs:
-            max_t = max(max_t, max((r[0].max() if len(r[0])>0 else 0) for r in runs))
+            max_t = max(max_t, max((r[0].max() if len(r[0]) > 0 else 0) for r in runs))
     max_t = int(max_t) if max_t > 0 else 1
 
     for sched, runs in sched_runs.items():
@@ -199,7 +226,11 @@ def plot_weighted_performance(results_dir, out_dir=None, window_len: int = 5, we
         wait_n = norm_low(wait_vals)
 
         for i, s in enumerate(scheds):
-            comp = weights.get('bw', 0.5) * bw_n[i] + weights.get('load', 0.3) * (1-load_n[i]) + weights.get('wait', 0.2) * (1-wait_n[i])
+            comp = (
+                weights.get('bw', 0.5) * bw_n[i]
+                + weights.get('load', 0.3) * load_n[i]
+                + weights.get('wait', 0.2) * wait_n[i]
+            )
             comp_series[s][t] = comp
 
     plt.figure(figsize=(10, 6))
@@ -208,19 +239,19 @@ def plot_weighted_performance(results_dir, out_dir=None, window_len: int = 5, we
     for i, s in enumerate(scheds):
         label = label_map.get(s, s) if isinstance(label_map, dict) else s
         plt.plot(smooth(comp_series[s], window_len=window_len), label=label, color=colors[i % len(colors)])
-    plt.xlabel('Time')
-    plt.ylabel('Weighted Composite Performance')
+    plt.xlabel('时间')
+    plt.ylabel('加权综合性能')
     plt.legend()
-    plt.title('Weighted Composite Performance Over Time')
-    out_path = os.path.join(out_dir, 'weighted_composite_line.png')
+    plt.title('加权综合性能随时间变化')
+    out_path = os.path.join(out_dir, 'weighted_composite_line_zh.png')
     plt.savefig(out_path)
     plt.close()
 
 
 def plot_three_metrics_over_time(results_dir, out_dir=None, window_lens=None, label_map=None, colors=None):
-    """绘制三个关注指标随时间的折线图：负载均衡度、平均带宽满足度、平均等待时间（按调度器取平均）。"""
+    """绘制三个关注指标随时间的折线图：负载均衡度、平均带宽满足度、平均等待时间。"""
     if out_dir is None:
-        out_dir = os.path.join(results_dir, 'results_plots')
+        out_dir = os.path.join(results_dir, '指标图')
     os.makedirs(out_dir, exist_ok=True)
 
     files = glob.glob(os.path.join(results_dir, '*_run*.csv'))
@@ -231,23 +262,23 @@ def plot_three_metrics_over_time(results_dir, out_dir=None, window_lens=None, la
         times, waits, cpus, bw_sats, lbs = load_history_csv_ext(f)
         sched_runs.setdefault(sched, []).append((times, waits, bw_sats, lbs))
 
-    # For each metric, build mean across runs per scheduler
-    # 支持通过 window_lens 指定每个 metric 的平滑窗口大小，接受 dict 或 None
     if window_lens is None:
         window_lens = {'load_balance': 50, 'avg_bw_satisfaction': 10, 'avg_waiting': 5}
 
-    for metric_index, (metric_name, extractor) in enumerate([
-        ('load_balance', lambda t,w,b,l: l),
-        ('avg_bw_satisfaction', lambda t,w,b,l: b),
-        ('avg_waiting', lambda t,w,b,l: w),
-    ]):
+    metric_info = [
+        ('load_balance', '负载均衡度', lambda t, w, b, l: l),
+        ('avg_bw_satisfaction', '平均带宽满足度', lambda t, w, b, l: b),
+        ('avg_waiting', '平均等待时间', lambda t, w, b, l: w),
+    ]
+
+    for metric_name, metric_cn, extractor in metric_info:
         plt.figure(figsize=(10, 6))
         if colors is None:
             colors = ['#2E86AB', '#A23B72', '#F18F01', '#16A085', '#7B2CBF']
         ordered_scheds = _order_scheds(sched_runs.keys(), label_map=label_map)
         for i, sched in enumerate(ordered_scheds):
             runs = sched_runs[sched]
-            max_t = int(max((r[0].max() if len(r[0])>0 else 0) for r in runs))
+            max_t = int(max((r[0].max() if len(r[0]) > 0 else 0) for r in runs))
             arr = []
             for times, waits, bw_sats, lbs in runs:
                 vec = np.zeros(max_t + 1)
@@ -260,17 +291,16 @@ def plot_three_metrics_over_time(results_dir, out_dir=None, window_lens=None, la
                 wl = int(window_lens.get(metric_name, 5)) if isinstance(window_lens, dict) else int(window_lens)
                 label = label_map.get(sched, sched) if isinstance(label_map, dict) else sched
                 plt.plot(smooth(mean, window_len=wl), label=label, color=colors[i % len(colors)])
-        plt.xlabel('Time')
-        plt.ylabel(metric_name)
+        plt.xlabel('时间')
+        plt.ylabel(metric_cn)
         plt.legend()
-        plt.title(f'{metric_name} Over Time (mean across runs)')
-        out_path = os.path.join(out_dir, f'{metric_name}_line.png')
+        plt.title(f'{metric_cn}随时间变化')
+        out_path = os.path.join(out_dir, f'{metric_name}_line_zh.png')
         plt.savefig(out_path)
         plt.close()
 
 
-def plot_box_summary(summary_csv, out='results/box_summary.png'):
-    # read summary and boxplot avg_waiting per scheduler
+def plot_box_summary(summary_csv, out='results/box_summary_zh.png'):
     data = {}
     with open(summary_csv, 'r') as f:
         reader = csv.DictReader(f)
@@ -282,14 +312,14 @@ def plot_box_summary(summary_csv, out='results/box_summary.png'):
     values = [data[k] for k in labels]
     plt.figure(figsize=(10, 6))
     plt.boxplot(values, labels=labels)
-    plt.ylabel('Avg waiting (final)')
-    plt.title('Algorithm Comparison: Avg Waiting Distribution')
+    plt.ylabel('平均等待时间（最终值）')
+    plt.title('算法对比：平均等待时间分布')
     os.makedirs(os.path.dirname(out), exist_ok=True)
     plt.savefig(out)
     plt.close()
 
 
-def plot_heatmap_cpu_over_time(results_dir, out='results/heatmap_cpu.png'):
+def plot_heatmap_cpu_over_time(results_dir, out='results/heatmap_cpu_zh.png'):
     files = glob.glob(os.path.join(results_dir, '*_run*.csv'))
     sched_runs = {}
     for f in files:
@@ -298,14 +328,13 @@ def plot_heatmap_cpu_over_time(results_dir, out='results/heatmap_cpu.png'):
         times, _, cpus = load_history_csv(f)
         sched_runs.setdefault(sched, []).append((times.astype(int), cpus))
 
-    # build matrix sched x time averaged across runs
     scheds = list(sched_runs.keys())
     max_t = 0
     for runs in sched_runs.values():
         for times, _ in runs:
             if len(times) > 0:
                 max_t = max(max_t, times.max())
-    max_t = int(max_t) if max_t>0 else 1
+    max_t = int(max_t) if max_t > 0 else 1
     mat = np.zeros((len(scheds), max_t + 1))
     for i, sched in enumerate(scheds):
         runs = sched_runs[sched]
@@ -322,29 +351,32 @@ def plot_heatmap_cpu_over_time(results_dir, out='results/heatmap_cpu.png'):
 
     plt.figure(figsize=(12, 6))
     plt.imshow(mat, aspect='auto', cmap='viridis', origin='lower')
-    plt.colorbar(label='Avg CPU Utilization')
+    plt.colorbar(label='平均 CPU 利用率')
     plt.yticks(range(len(scheds)), scheds)
-    plt.xlabel('Time')
-    plt.title('CPU Utilization Over Time (avg across runs)')
+    plt.xlabel('时间')
+    plt.title('CPU 利用率随时间变化（跨运行取均值）')
     os.makedirs(os.path.dirname(out), exist_ok=True)
     plt.savefig(out)
     plt.close()
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Plot simulation results with optional smoothing')
+    parser = argparse.ArgumentParser(description='绘制仿真结果图（支持平滑与中文标签）')
     parser.add_argument('--results-dir', default=str(Path(__file__).resolve().parent / 'results'))
     parser.add_argument('--out-dir', default=None)
-    parser.add_argument('--window-line-avg-wait', type=int, default=5, help='smoothing window for avg wait line plot')
-    parser.add_argument('--window-load-balance', type=int, default=50, help='smoothing window for load_balance')
-    parser.add_argument('--window-avg-bw', type=int, default=5, help='smoothing window for avg_bw_satisfaction')
-    parser.add_argument('--window-avg-waiting', type=int, default=5, help='smoothing window for avg_waiting')
-    parser.add_argument('--window-weighted', type=int, default=30, help='smoothing window for weighted composite performance')
+    parser.add_argument('--font-size', type=int, default=18, help='基础字体大小（标题会在此基础上更大）')
+    parser.add_argument('--window-line-avg-wait', type=int, default=5, help='平均等待时间折线图的平滑窗口')
+    parser.add_argument('--window-load-balance', type=int, default=50, help='负载均衡度曲线的平滑窗口')
+    parser.add_argument('--window-avg-bw', type=int, default=5, help='平均带宽满足度曲线的平滑窗口')
+    parser.add_argument('--window-avg-waiting', type=int, default=5, help='平均等待时间曲线的平滑窗口')
+    parser.add_argument('--window-weighted', type=int, default=30, help='加权综合性能曲线的平滑窗口')
     args = parser.parse_args()
 
+    configure_chinese_font()
+    configure_plot_sizes(base_font_size=args.font_size)
 
     label_map = {
-        'ces_scheduler': 'CES_Multi_Task',
+        'ces_scheduler': 'CES-Multi-Jobs',
         'swts_scheduler': 'SWTS',
         'adaevo_scheduler': 'AdaEvo',
         'sjf_scheduler': 'SJF',
@@ -353,16 +385,19 @@ if __name__ == '__main__':
     colors = ['#2E86AB', '#A23B72', '#F18F01', '#16A085', '#7B2CBF']
 
     results_dir = args.results_dir
-    # 生成 line avg wait（可单独平滑）``
-    # plot_line_avg_wait(results_dir, out=os.path.join(results_dir, 'avg_wait_line.png'), window_len=args.window_line_avg_wait, label_map=label_map)
 
-    # 生成三个 metrics 的折线图，分别传入各自的平滑窗口
     wl = {
         'load_balance': args.window_load_balance,
         'avg_bw_satisfaction': args.window_avg_bw,
         'avg_waiting': args.window_avg_waiting,
     }
-    out_dir = args.out_dir or os.path.join(results_dir, 'metrics')
-    plot_three_metrics_over_time(results_dir, out_dir=out_dir, window_lens=wl, label_map=label_map)
-    # 生成加权综合性能图（默认权重 bw:0.5, load:0.3, wait:0.2 ）
-    plot_weighted_performance(results_dir, out_dir=out_dir, window_len=args.window_weighted, weights={'bw':0.5,'load':0.3,'wait':0.2}, label_map=label_map)
+    out_dir = args.out_dir or os.path.join(results_dir, 'metrics_zh')
+    plot_three_metrics_over_time(results_dir, out_dir=out_dir, window_lens=wl, label_map=label_map, colors=colors)
+    plot_weighted_performance(
+        results_dir,
+        out_dir=out_dir,
+        window_len=args.window_weighted,
+        weights={'bw': 0.5, 'load': 0.3, 'wait': 0.2},
+        label_map=label_map,
+        colors=colors
+    )

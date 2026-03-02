@@ -729,11 +729,3 @@ class Simulator:
             "avg_waiting_completed": avg_wait_completed,
             "avg_bw_satisfaction": (sum(bw_satisfaction) / len(bw_satisfaction)) if bw_satisfaction else 0.0,
         }
-        return {
-            "now": self.now,
-            "completed": len(self.completed),
-            "makespan": makespan,
-            "avg_turnaround": (sum(turnaround) / len(turnaround)) if turnaround else 0.0,
-            "avg_waiting": (sum(waiting) / len(waiting)) if waiting else 0.0,
-            "avg_bw_satisfaction": (sum(bw_satisfaction) / len(bw_satisfaction)) if bw_satisfaction else 0.0,
-        }
